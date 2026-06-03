@@ -1,0 +1,841 @@
+import { useSearchParams, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
+
+const DIAS_ORDEN = [
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+  "domingo",
+];
+
+const PLAN_LIMITS = {
+  free: {
+    maxImages: 2,
+    maxDescription: 280,
+    social: false,
+    web: false,
+    video: false,
+  },
+  standard: {
+    maxImages: 6,
+    maxDescription: 700,
+    social: true,
+    web: false,
+    video: false,
+  },
+  premium: {
+    maxImages: 10,
+    maxDescription: 1500,
+    social: true,
+    web: true,
+    video: true,
+  },
+};
+
+function slugify(text) {
+  return text
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+const emptyHorarios = () =>
+  DIAS_ORDEN.reduce((acc, dia) => {
+    acc[dia] = {
+      open: "",
+      close: "",
+      open2: "",
+      close2: "",
+    };
+    return acc;
+  }, {});
+
+export default function RegisterBusiness() {
+  const [searchParams] = useSearchParams();
+  const { id } = useParams();
+
+  const planParam = searchParams.get("plan");
+  const isAdmin = searchParams.get("admin") === "true";
+
+  const [userPlan, setUserPlan] = useState(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+
+  const [form, setForm] = useState({
+    negocio: "",
+    rubro: "",
+    ciudad: "",
+    provincia: "",
+    direccion: "",
+    descripcion: "",
+    whatsapp: "",
+    facebook: "",
+    instagram: "",
+    tiktok: "",
+    email: "",
+    web: "",
+    image: "",
+    images: [],
+    video: "",
+    lat: null,
+    lng: null,
+    plan: planParam || "free",
+  });
+
+  const activePlan = isAdmin
+    ? form.plan || "free"
+    : userPlan || planParam || form.plan || "free";
+
+  const limits = PLAN_LIMITS[activePlan] || PLAN_LIMITS.free;
+
+  const [horarios, setHorarios] = useState(emptyHorarios());
+
+  const [images, setImages] = useState([]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [previewImages, setPreviewImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [id]);
+
+  async function loadInitialData() {
+    setLoadingPlan(true);
+
+    const realPlan = await loadUserPlan();
+
+    if (id) {
+      await loadBusiness(realPlan);
+    }
+
+    setLoadingPlan(false);
+  }
+
+  async function loadUserPlan() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setUserPlan(null);
+      return null;
+    }
+
+    if (isAdmin) {
+      return null;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.plan) {
+      setUserPlan(profile.plan);
+
+      setForm((prev) => ({
+        ...prev,
+        plan: profile.plan,
+      }));
+
+      return profile.plan;
+    }
+
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan, status")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (subscription?.plan) {
+      setUserPlan(subscription.plan);
+
+      setForm((prev) => ({
+        ...prev,
+        plan: subscription.plan,
+      }));
+
+      return subscription.plan;
+    }
+
+    setUserPlan(null);
+    return null;
+  }
+
+  async function loadBusiness(realPlan) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    if (data) {
+      const finalPlan = isAdmin
+        ? data.plan || planParam || "free"
+        : realPlan || planParam || data.plan || "free";
+
+      setForm({
+        ...data,
+        rubro: data.rubro || "",
+        direccion: data.direccion || "",
+        video: data.video || "",
+        lat: data.lat || null,
+        lng: data.lng || null,
+        plan: finalPlan,
+      });
+
+      const finalLimits = PLAN_LIMITS[finalPlan] || PLAN_LIMITS.free;
+
+      let horariosFix = {};
+
+      DIAS_ORDEN.forEach((dia) => {
+        const value = data.horarios?.[dia];
+
+        if (value && value !== "Cerrado") {
+          const partes = value.split("/").map((p) => p.trim());
+
+          const [open, close] =
+            partes[0]?.split("-").map((p) => p.trim()) || ["", ""];
+
+          const [open2, close2] =
+            partes[1]?.split("-").map((p) => p.trim()) || ["", ""];
+
+          horariosFix[dia] = {
+            open: open || "",
+            close: close || "",
+            open2: open2 || "",
+            close2: close2 || "",
+          };
+        } else {
+          horariosFix[dia] = {
+            open: "",
+            close: "",
+            open2: "",
+            close2: "",
+          };
+        }
+      });
+
+      setHorarios(horariosFix);
+
+      if (Array.isArray(data.images) && data.images.length > 0) {
+        setPreviewImages(data.images.slice(0, finalLimits.maxImages));
+      } else if (data.image) {
+        setPreviewImages([data.image]);
+      }
+    }
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+
+    if (name === "descripcion" && value.length > limits.maxDescription) {
+      return;
+    }
+
+    setForm({
+      ...form,
+      [name]: value,
+    });
+  }
+
+  const handleHorarioChange = (day, field, value) => {
+    setHorarios((prev) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleImages = (files) => {
+    const arr = Array.from(files);
+
+    if (arr.length > limits.maxImages) {
+      alert(`Tu plan ${activePlan} permite hasta ${limits.maxImages} fotos.`);
+      return;
+    }
+
+    setImages(arr);
+
+    const previews = arr.map((file) => URL.createObjectURL(file));
+
+    setPreviewImages(previews);
+
+    if (previews.length > 0) {
+      setForm((prev) => ({
+        ...prev,
+        image: previews[0],
+      }));
+    }
+  };
+
+  const handleVideo = (files) => {
+    const file = files?.[0];
+
+    if (!limits.video) {
+      alert("El video está disponible solo en el plan Premium.");
+      return;
+    }
+
+    if (!file) return;
+
+    setVideoFile(file);
+  };
+
+  async function getLocation() {
+    if (!navigator.geolocation) {
+      alert("Tu navegador no soporta ubicación");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((prev) => ({
+          ...prev,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }));
+
+        alert("Ubicación guardada correctamente 📍");
+      },
+      (error) => {
+        console.error(error);
+        alert("No pudimos obtener tu ubicación");
+      }
+    );
+  }
+
+  const uploadFile = async (file, folder = "business-images") => {
+    const cleanName = file.name.replace(/\s+/g, "-");
+    const fileName = `${Date.now()}-${cleanName}`;
+
+    const { error } = await supabase.storage
+      .from(folder)
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (error) {
+      console.error(error);
+      throw error;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from(folder)
+      .getPublicUrl(fileName);
+
+    return publicData.publicUrl;
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) {
+        alert("Iniciá sesión");
+        return;
+      }
+
+      if (form.descripcion.length > limits.maxDescription) {
+        alert(
+          `La descripción supera el límite de ${limits.maxDescription} caracteres.`
+        );
+        return;
+      }
+
+      const currentImagesCount =
+        images.length > 0 ? images.length : form.images?.length || 0;
+
+      if (currentImagesCount > limits.maxImages) {
+        alert(`Tu plan ${activePlan} permite hasta ${limits.maxImages} fotos.`);
+        return;
+      }
+
+      let imagesUrls = [];
+
+      for (let file of images) {
+        const url = await uploadFile(file, "business-images");
+        imagesUrls.push(url);
+      }
+
+      let videoUrl = form.video || "";
+
+      if (videoFile) {
+        videoUrl = await uploadFile(videoFile, "business-images");
+      }
+
+      let horariosFinal = {};
+
+      DIAS_ORDEN.forEach((dia) => {
+        const h = horarios[dia];
+        const turnos = [];
+
+        if (h?.open && h?.close) {
+          turnos.push(`${h.open}-${h.close}`);
+        }
+
+        if (h?.open2 && h?.close2) {
+          turnos.push(`${h.open2}-${h.close2}`);
+        }
+
+        horariosFinal[dia] = turnos.length > 0 ? turnos.join(" / ") : "Cerrado";
+      });
+
+      let principalImage = "";
+
+      if (form.image?.startsWith("blob:")) {
+        const selectedIndex = previewImages.indexOf(form.image);
+
+        principalImage = imagesUrls[selectedIndex] || imagesUrls[0] || "";
+      } else {
+        principalImage = form.image || imagesUrls[0] || "";
+      }
+
+      const finalImages =
+        imagesUrls.length > 0
+          ? imagesUrls.slice(0, limits.maxImages)
+          : (form.images || []).slice(0, limits.maxImages);
+
+      const payload = {
+        ...form,
+
+        slug: slugify(`${form.negocio}-${form.ciudad}`),
+
+        plan: activePlan,
+
+        user_id: userData.user.id,
+
+        image: principalImage,
+
+        images: finalImages,
+
+        video: limits.video ? videoUrl : "",
+
+        facebook: limits.social ? form.facebook : "",
+        instagram: limits.social ? form.instagram : "",
+        tiktok: limits.social ? form.tiktok : "",
+        email: limits.social ? form.email : "",
+
+        web: limits.web ? form.web : "",
+
+        horarios: horariosFinal,
+
+        lat: form.lat,
+        lng: form.lng,
+      };
+
+      let response;
+
+      if (id) {
+        response = await supabase
+          .from("businesses")
+          .update(payload)
+          .eq("id", id);
+      } else {
+        response = await supabase.from("businesses").insert([payload]);
+      }
+
+      if (response.error) {
+        console.error(response.error);
+        alert(JSON.stringify(response.error));
+        return;
+      }
+
+      alert("Guardado correctamente 🚀");
+
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("ERROR GENERAL:", err);
+      alert("Error general");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const remainingChars = limits.maxDescription - form.descripcion.length;
+
+  if (loadingPlan) {
+    return (
+      <div className="min-h-screen bg-slate-100 p-6 flex items-center justify-center">
+        <div className="bg-white p-6 rounded-2xl shadow">
+          Cargando plan...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-6">
+      <div className="grid md:grid-cols-2 gap-6 max-w-7xl mx-auto">
+        <div className="bg-white p-6 rounded-2xl shadow space-y-4">
+          <h1 className="text-2xl font-bold">
+            {id ? "Editar negocio" : "Crear negocio"}
+          </h1>
+
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm">
+            Plan actual: <b>{activePlan}</b> · Hasta{" "}
+            <b>{limits.maxImages}</b> fotos · Descripción hasta{" "}
+            <b>{limits.maxDescription}</b> caracteres
+            {limits.video && <> · 1 video</>}
+          </div>
+
+          {isAdmin && (
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
+              <label className="block text-sm font-bold text-yellow-800 mb-2">
+                Seleccionar plan del negocio
+              </label>
+
+              <select
+                name="plan"
+                value={form.plan || "free"}
+                onChange={handleChange}
+                className="input"
+              >
+                <option value="free">Gratis</option>
+                <option value="standard">Estándar</option>
+                <option value="premium">Premium</option>
+              </select>
+
+              <p className="text-xs text-yellow-700 mt-2">
+                Como administrador podés cargar negocios gratuitos, estándar o premium.
+              </p>
+            </div>
+          )}
+
+          <input
+            name="negocio"
+            placeholder="Negocio"
+            onChange={handleChange}
+            value={form.negocio}
+            className="input"
+          />
+
+          <input
+            name="rubro"
+            placeholder="Rubro (Ej: Plomero, Restaurante, Electricista)"
+            onChange={handleChange}
+            value={form.rubro || ""}
+            className="input"
+          />
+
+          <input
+            name="ciudad"
+            placeholder="Ciudad"
+            onChange={handleChange}
+            value={form.ciudad}
+            className="input"
+          />
+
+          <input
+            name="provincia"
+            placeholder="Provincia"
+            onChange={handleChange}
+            value={form.provincia}
+            className="input"
+          />
+
+          <input
+            name="direccion"
+            placeholder="Dirección"
+            onChange={handleChange}
+            value={form.direccion}
+            className="input"
+          />
+
+          <button
+            type="button"
+            onClick={getLocation}
+            className="bg-blue-600 text-white px-4 py-3 rounded-xl font-semibold"
+          >
+            📍 Usar mi ubicación actual
+          </button>
+
+          {form.lat && form.lng && (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-xl text-sm">
+              ✅ Ubicación guardada correctamente
+            </div>
+          )}
+
+          <div>
+            <textarea
+              name="descripcion"
+              placeholder="Descripción"
+              onChange={handleChange}
+              value={form.descripcion}
+              maxLength={limits.maxDescription}
+              className="input"
+            />
+
+            <p
+              className={`text-xs mt-1 ${
+                remainingChars < 30 ? "text-red-500" : "text-gray-500"
+              }`}
+            >
+              Te quedan {remainingChars} caracteres disponibles
+            </p>
+          </div>
+
+          <div>
+            <input
+              name="whatsapp"
+              placeholder="WhatsApp"
+              onChange={handleChange}
+              value={form.whatsapp}
+              className="input"
+            />
+
+            <p className="text-xs text-gray-500 mt-1">
+              Ingresá solo el número. El sistema agrega automáticamente el código de Argentina.
+            </p>
+          </div>
+
+          {limits.social && (
+            <div className="bg-gray-50 p-4 rounded-xl space-y-3">
+              <h3 className="font-bold">Redes sociales</h3>
+
+              <input
+                name="facebook"
+                placeholder="Facebook"
+                onChange={handleChange}
+                value={form.facebook || ""}
+                className="input"
+              />
+
+              <input
+                name="instagram"
+                placeholder="Instagram"
+                onChange={handleChange}
+                value={form.instagram || ""}
+                className="input"
+              />
+
+              <input
+                name="tiktok"
+                placeholder="TikTok"
+                onChange={handleChange}
+                value={form.tiktok || ""}
+                className="input"
+              />
+
+              <input
+                name="email"
+                placeholder="Email"
+                onChange={handleChange}
+                value={form.email || ""}
+                className="input"
+              />
+            </div>
+          )}
+
+          {limits.web && (
+            <input
+              name="web"
+              placeholder="Sitio web"
+              onChange={handleChange}
+              value={form.web || ""}
+              className="input"
+            />
+          )}
+
+          <div className="bg-gray-50 p-4 rounded-xl">
+            <h3 className="font-bold mb-3">Horarios</h3>
+
+            <p className="text-xs text-gray-500 mb-4">
+              Podés cargar horario corrido o horario cortado. Ejemplo: 08:00-12:30 / 16:30-21:00.
+            </p>
+
+            {DIAS_ORDEN.map((day) => (
+              <div key={day} className="mb-4 border-b pb-3">
+                <p className="capitalize text-sm font-bold mb-2">
+                  {day}
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Abre mañana</p>
+                    <input
+                      type="time"
+                      value={horarios[day]?.open || ""}
+                      onChange={(e) =>
+                        handleHorarioChange(day, "open", e.target.value)
+                      }
+                      className="input"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Cierra mañana</p>
+                    <input
+                      type="time"
+                      value={horarios[day]?.close || ""}
+                      onChange={(e) =>
+                        handleHorarioChange(day, "close", e.target.value)
+                      }
+                      className="input"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Abre tarde</p>
+                    <input
+                      type="time"
+                      value={horarios[day]?.open2 || ""}
+                      onChange={(e) =>
+                        handleHorarioChange(day, "open2", e.target.value)
+                      }
+                      className="input"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Cierra tarde</p>
+                    <input
+                      type="time"
+                      value={horarios[day]?.close2 || ""}
+                      onChange={(e) =>
+                        handleHorarioChange(day, "close2", e.target.value)
+                      }
+                      className="input"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <p className="font-semibold mb-2">
+              Imágenes ({previewImages.length}/{limits.maxImages})
+            </p>
+
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => handleImages(e.target.files)}
+            />
+
+            <p className="text-xs text-gray-500 mt-1">
+              Tu plan permite hasta {limits.maxImages} fotos.
+            </p>
+
+            <div className="flex gap-3 mt-4 flex-wrap">
+              {previewImages.map((img, i) => (
+                <div
+                  key={i}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      image: img,
+                    }))
+                  }
+                  className={`relative border-4 rounded-xl overflow-hidden cursor-pointer transition ${
+                    form.image === img
+                      ? "border-blue-600"
+                      : "border-transparent"
+                  }`}
+                >
+                  <img
+                    src={img}
+                    className="w-28 h-28 object-contain bg-gray-100"
+                  />
+
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs text-center py-1">
+                    {form.image === img ? "⭐ Principal" : "Elegir"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {limits.video && (
+            <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl">
+              <p className="font-semibold mb-2">Video Premium (máximo 1)</p>
+
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => handleVideo(e.target.files)}
+              />
+
+              {videoFile && (
+                <p className="text-sm text-purple-700 mt-2">
+                  ✅ Video seleccionado: {videoFile.name}
+                </p>
+              )}
+
+              {form.video && !videoFile && (
+                <p className="text-sm text-purple-700 mt-2">
+                  ✅ Ya tenés un video guardado
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold"
+          >
+            {loading ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow">
+          <h2 className="text-xl font-bold mb-4">Vista previa</h2>
+
+          <div className="border rounded-xl overflow-hidden">
+            <img
+              src={
+                form.image ||
+                previewImages[0] ||
+                "https://placehold.co/600x400?text=Sin+imagen"
+              }
+              onError={(e) => {
+                e.target.src =
+                  "https://placehold.co/600x400?text=Error+imagen";
+              }}
+              className="w-full h-56 object-contain bg-gray-100"
+            />
+
+            <div className="p-4">
+              <h3 className="text-xl font-bold">
+                {form.negocio || "Nombre del negocio"}
+              </h3>
+
+              <p className="text-gray-500 text-sm">
+                📍 {form.ciudad || "Ciudad"}
+              </p>
+
+              <p className="text-sm mt-2 whitespace-pre-line">
+                {form.descripcion}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
