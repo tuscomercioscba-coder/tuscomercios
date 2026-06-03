@@ -78,8 +78,8 @@ export default function Dashboard() {
       return (groupedClicks[b.id] || 0) - (groupedClicks[a.id] || 0);
     });
 
-    setBusinesses(sortedMyBusinesses);
-    setAllBusinesses(allData || []);
+        setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
+    setAllBusinesses(sortBusinessesByPlan(allData || []));
 
     let bannersQuery = supabase.from("banners").select(`
       *,
@@ -121,6 +121,25 @@ export default function Dashboard() {
     });
 
     return grouped;
+  }
+
+    function sortBusinessesByPlan(list) {
+    const planOrder = {
+      premium: 1,
+      standard: 2,
+      free: 3,
+    };
+
+    return [...(list || [])].sort((a, b) => {
+      const planA = (a.plan || "free").toLowerCase();
+      const planB = (b.plan || "free").toLowerCase();
+
+      const byPlan = (planOrder[planA] || 99) - (planOrder[planB] || 99);
+
+      if (byPlan !== 0) return byPlan;
+
+      return (a.negocio || "").localeCompare(b.negocio || "");
+    });
   }
 
   function money(value) {
@@ -735,7 +754,7 @@ export default function Dashboard() {
                 </thead>
 
                 <tbody>
-                  {[...allBusinesses]
+                  {sortBusinessesByPlan(allBusinesses)
                     .sort(
                       (a, b) =>
                         (clicksByBusiness[b.id] || 0) -

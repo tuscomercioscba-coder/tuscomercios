@@ -57,21 +57,43 @@ export default function BusinessView() {
   async function registerView(businessId) {
     if (!businessId) return;
 
-    await supabase.from("views").insert([
+    const { error } = await supabase.from("views").insert([
       {
         business_id: businessId,
       },
     ]);
+
+    if (error) console.log("Error guardando view:", error);
+  }
+
+  async function registerVisit(businessId) {
+    if (!businessId) return;
+
+    const sessionKey = `tc_visit_${businessId}`;
+
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    sessionStorage.setItem(sessionKey, "true");
+
+    const { error } = await supabase.from("visits").insert([
+      {
+        business_id: businessId,
+      },
+    ]);
+
+    if (error) console.log("Error guardando visita:", error);
   }
 
   async function registerWhatsappClick(businessId) {
     if (!businessId) return;
 
-    await supabase.from("clicks").insert([
+    const { error } = await supabase.from("clicks").insert([
       {
         business_id: businessId,
       },
     ]);
+
+    if (error) console.log("Error guardando click:", error);
   }
 
   async function getBusiness() {
@@ -90,6 +112,7 @@ export default function BusinessView() {
 
     if (data?.id) {
       await registerView(data.id);
+      await registerVisit(data.id);
     }
   }
 
@@ -140,9 +163,7 @@ export default function BusinessView() {
   if (!business) {
     return (
       <Layout>
-        <p className="text-center mt-10">
-          Cargando...
-        </p>
+        <p className="text-center mt-10">Cargando...</p>
       </Layout>
     );
   }
@@ -151,10 +172,7 @@ export default function BusinessView() {
 
   if (Array.isArray(business.images)) {
     images = business.images.filter(
-      (img) =>
-        img &&
-        typeof img === "string" &&
-        img.includes("supabase.co")
+      (img) => img && typeof img === "string" && img.includes("supabase.co")
     );
   }
 
@@ -167,11 +185,9 @@ export default function BusinessView() {
   }
 
   const currentImage =
-    images[index] ||
-    "https://placehold.co/800x500?text=Sin+Imagen";
+    images[index] || "https://placehold.co/800x500?text=Sin+Imagen";
 
   const shareUrl = window.location.href;
-
   const shareText = `Mirá ${business.negocio} en Tus Comercios`;
 
   const message = encodeURIComponent(
@@ -258,36 +274,16 @@ export default function BusinessView() {
           }
         />
 
-        <meta
-          property="og:title"
-          content={`${business.negocio} | Tus Comercios`}
-        />
-
-        <meta
-          property="og:description"
-          content={business.descripcion}
-        />
-
+        <meta property="og:title" content={`${business.negocio} | Tus Comercios`} />
+        <meta property="og:description" content={business.descripcion} />
         <meta property="og:image" content={business.image || currentImage} />
-
-        <meta
-          property="og:image:secure_url"
-          content={business.image || currentImage}
-        />
-
+        <meta property="og:image:secure_url" content={business.image || currentImage} />
         <meta property="og:url" content={shareUrl} />
-
         <meta property="og:type" content="website" />
 
         <meta name="twitter:card" content="summary_large_image" />
-
-        <meta
-          name="twitter:title"
-          content={`${business.negocio} | Tus Comercios`}
-        />
-
+        <meta name="twitter:title" content={`${business.negocio} | Tus Comercios`} />
         <meta name="twitter:description" content={business.descripcion} />
-
         <meta name="twitter:image" content={business.image || currentImage} />
       </Helmet>
 
@@ -317,9 +313,7 @@ export default function BusinessView() {
 
             <div className="md:w-1/2 flex flex-col justify-between">
               <div>
-                <h1 className="text-3xl font-bold mb-2">
-                  {business.negocio}
-                </h1>
+                <h1 className="text-3xl font-bold mb-2">{business.negocio}</h1>
 
                 <p className="text-gray-500 mb-2">
                   📍 {business.ciudad}, {business.provincia}
@@ -342,9 +336,7 @@ export default function BusinessView() {
 
               {hasSocials && (
                 <div className="mt-6 bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                  <h3 className="font-bold mb-3">
-                    Redes y contacto
-                  </h3>
+                  <h3 className="font-bold mb-3">Redes y contacto</h3>
 
                   <div className="flex flex-wrap gap-2">
                     {business.facebook && (
@@ -457,22 +449,15 @@ export default function BusinessView() {
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-xl font-bold mb-4">
-            Horarios
-          </h2>
+          <h2 className="text-xl font-bold mb-4">Horarios</h2>
 
           <div className="space-y-2 text-sm">
             {DIAS_ORDEN.map((dia) => {
               const horario = business.horarios?.[dia] || "Cerrado";
 
               return (
-                <div
-                  key={dia}
-                  className="flex justify-between gap-4 border-b pb-1"
-                >
-                  <span className="capitalize font-medium">
-                    {dia}
-                  </span>
+                <div key={dia} className="flex justify-between gap-4 border-b pb-1">
+                  <span className="capitalize font-medium">{dia}</span>
 
                   <span className="text-gray-600 text-right">
                     {formatHorario(horario)}

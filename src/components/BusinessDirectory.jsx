@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,12 @@ export default function BusinessDirectory() {
   const [userLocation, setUserLocation] = useState(null);
 
   const navigate = useNavigate();
+
+  const planOrder = {
+    premium: 1,
+    standard: 2,
+    free: 3,
+  };
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -48,34 +54,28 @@ export default function BusinessDirectory() {
       .trim();
   }
 
+  function normalizePlan(plan) {
+    const clean = normalizeText(plan || "free");
+    if (clean === "premium") return "premium";
+    if (clean === "standard") return "standard";
+    return "free";
+  }
+
   function formatWhatsappNumber(number) {
     if (!number) return "";
 
     let clean = number.toString().replace(/\D/g, "");
 
-    if (clean.startsWith("00")) {
-      clean = clean.slice(2);
-    }
-
-    if (clean.startsWith("549")) {
-      return clean;
-    }
-
-    if (clean.startsWith("54")) {
-      return clean;
-    }
-
-    if (clean.startsWith("0")) {
-      clean = clean.slice(1);
-    }
+    if (clean.startsWith("00")) clean = clean.slice(2);
+    if (clean.startsWith("549")) return clean;
+    if (clean.startsWith("54")) return clean;
+    if (clean.startsWith("0")) clean = clean.slice(1);
 
     return `549${clean}`;
   }
 
-  const fetchBusinesses = async () => {
-    const { data, error } = await supabase
-      .from("businesses")
-      .select("*");
+  async function fetchBusinesses() {
+    const { data, error } = await supabase.from("businesses").select("*");
 
     if (error) {
       console.log(error);
@@ -83,7 +83,57 @@ export default function BusinessDirectory() {
     }
 
     setBusinesses(data || []);
-  };
+  }
+
+  async function registerVisit(businessId) {
+    if (!businessId) return;
+
+    const { error } = await supabase.from("visits").insert([
+      {
+        business_id: businessId,
+      },
+    ]);
+
+    if (error) console.log("Error guardando visita:", error);
+  }
+
+  async function registerWhatsappClick(businessId) {
+    if (!businessId) return;
+
+    const { error } = await supabase.from("clicks").insert([
+      {
+        business_id: businessId,
+      },
+    ]);
+
+    if (error) console.log("Error guardando click:", error);
+  }
+
+  async function registerCardViews(items) {
+    if (!items || items.length === 0) return;
+
+    const rows = [];
+
+    items.forEach((b) => {
+      if (!b?.id) return;
+
+      const key = `tc_view_${b.id}`;
+
+      if (sessionStorage.getItem(key)) return;
+
+      sessionStorage.setItem(key, "true");
+
+      rows.push({
+        business_id: b.id,
+      });
+    });
+
+    if (rows.length === 0) return;
+
+    const { error } = await supabase.from("views").insert(rows);
+
+    if (error) console.log("Error guardando views:", error);
+  }
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -114,7 +164,7 @@ export default function BusinessDirectory() {
     `);
   };
 
-  const getScore = (b) => {
+  const getSearchScore = (b) => {
     let score = 0;
 
     if (search) {
@@ -133,9 +183,6 @@ export default function BusinessDirectory() {
       if (ciudadText.includes(search) || provincia.includes(search)) score += 2;
     }
 
-    if (b.plan === "premium") score += 5;
-    if (b.plan === "standard") score += 3;
-
     if (userLocation && b.lat && b.lng) {
       const distance = getDistance(
         userLocation.lat,
@@ -150,23 +197,47 @@ export default function BusinessDirectory() {
     return score;
   };
 
-  const filtered = businesses
-    .filter((b) => {
-      if (!search) return true;
+  const filtered = useMemo(() => {
+    return businesses
+      .filter((b) => {
+        if (!search) return true;
 
-      const text = getSearchText(b);
+        const text = getSearchText(b);
 
-      return text.includes(search);
-    })
-    .filter((b) => {
-      if (!city) return true;
+        return text.includes(search);
+      })
+      .filter((b) => {
+        if (!city) return true;
 
-      const businessCity = normalizeText(b.ciudad || "");
-      const businessProvince = normalizeText(b.provincia || "");
+        const businessCity = normalizeText(b.ciudad || "");
+        const businessProvince = normalizeText(b.provincia || "");
 
-      return businessCity.includes(city) || businessProvince.includes(city);
-    })
-    .sort((a, b) => getScore(b) - getScore(a));
+        return businessCity.includes(city) || businessProvince.includes(city);
+      })
+      .sort((a, b) => {
+        const planA = normalizePlan(a.plan);
+        const planB = normalizePlan(b.plan);
+
+        const byPlan = (planOrder[planA] || 99) - (planOrder[planB] || 99);
+
+        if (byPlan !== 0) return byPlan;
+
+        const byScore = getSearchScore(b) - getSearchScore(a);
+
+        if (byScore !== 0) return byScore;
+
+        return (a.negocio || "").localeCompare(b.negocio || "");
+      });
+  }, [businesses, search, city, userLocation]);
+
+  useEffect(() => {
+    registerCardViews(filtered);
+  }, [filtered]);
+
+  async function goToBusiness(b) {
+    await registerVisit(b.id);
+    navigate(`/${b.slug}`);
+  }
 
   return (
     <section className="py-12 bg-white">
@@ -199,10 +270,12 @@ export default function BusinessDirectory() {
               );
             }
 
+            const plan = normalizePlan(b.plan);
+
             return (
               <div
                 key={b.id}
-                onClick={() => navigate(`/${b.slug}`)}
+                onClick={() => goToBusiness(b)}
                 className="flex gap-4 bg-white border rounded-2xl shadow hover:shadow-xl transition cursor-pointer overflow-hidden"
               >
                 <div className="w-40 h-32 bg-gray-200 flex-shrink-0">
@@ -215,13 +288,9 @@ export default function BusinessDirectory() {
 
                 <div className="flex flex-col justify-between p-4 w-full">
                   <div>
-                    <h2 className="text-lg font-bold">
-                      {b.negocio}
-                    </h2>
+                    <h2 className="text-lg font-bold">{b.negocio}</h2>
 
-                    <p className="text-sm text-gray-500">
-                      📍 {b.ciudad}
-                    </p>
+                    <p className="text-sm text-gray-500">📍 {b.ciudad}</p>
 
                     {b.rubro && (
                       <p className="text-xs text-blue-700 mt-1 font-semibold">
@@ -244,12 +313,12 @@ export default function BusinessDirectory() {
                     <span
                       className={`
                         text-xs px-3 py-1 rounded-full font-semibold
-                        ${b.plan === "premium" ? "bg-blue-600 text-white" : ""}
-                        ${b.plan === "standard" ? "bg-blue-100 text-blue-700" : ""}
-                        ${b.plan === "free" ? "bg-gray-100 text-gray-600" : ""}
+                        ${plan === "premium" ? "bg-blue-600 text-white" : ""}
+                        ${plan === "standard" ? "bg-blue-100 text-blue-700" : ""}
+                        ${plan === "free" ? "bg-gray-100 text-gray-600" : ""}
                       `}
                     >
-                      {b.plan || "free"}
+                      {plan}
                     </span>
 
                     {whatsappNumber && (
@@ -257,11 +326,7 @@ export default function BusinessDirectory() {
                         onClick={async (e) => {
                           e.stopPropagation();
 
-                          await supabase.from("clicks").insert([
-                            {
-                              business_id: b.id,
-                            },
-                          ]);
+                          await registerWhatsappClick(b.id);
 
                           window.open(whatsappLink, "_blank");
                         }}
