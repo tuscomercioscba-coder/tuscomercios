@@ -746,9 +746,8 @@ export default function Dashboard() {
                   <tr className="text-left border-b">
                     <th className="p-3">Negocio</th>
                     <th className="p-3">Plan</th>
-                    <th className="p-3">Visitas</th>
                     <th className="p-3">Clicks</th>
-                    <th className="p-3">Views</th>
+                    <th className="p-3">Vistas</th>
                     <th className="p-3">Conversión</th>
                   </tr>
                 </thead>
@@ -761,17 +760,16 @@ export default function Dashboard() {
                         (clicksByBusiness[a.id] || 0)
                     )
                     .map((b) => {
-                      const visits = visitsByBusiness[b.id] || 0;
+                      const views = viewsByBusiness[b.id] || 0;
                       const clicks = clicksByBusiness[b.id] || 0;
-                      const conversion = visits ? Math.round((clicks / visits) * 100) : 0;
+                      const conversion = views ? Math.round((clicks / views) * 100) : 0;
 
                       return (
                         <tr key={b.id} className="border-b">
                           <td className="p-3 font-bold">{b.negocio}</td>
                           <td className="p-3">{b.plan || "free"}</td>
-                          <td className="p-3">{visits}</td>
+                          <td className="p-3">{views}</td>
                           <td className="p-3">{clicks}</td>
-                          <td className="p-3">{viewsByBusiness[b.id] || 0}</td>
                           <td className="p-3">{conversion}%</td>
                         </tr>
                       );

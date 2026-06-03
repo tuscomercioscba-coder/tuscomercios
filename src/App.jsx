@@ -1,5 +1,7 @@
-import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { supabase } from "./supabase";
 
 import Header from "./components/Header";
 import BusinessDirectory from "./components/BusinessDirectory";
@@ -25,9 +27,7 @@ function Home() {
   return (
     <>
       <Helmet>
-        <title>
-          Tus Comercios | Negocios y comercios de Argentina
-        </title>
+        <title>Tus Comercios | Negocios y comercios de Argentina</title>
 
         <meta
           name="description"
@@ -39,25 +39,16 @@ function Home() {
           content="comercios, negocios, empresas, argentina, vidriera digital, servicios, locales"
         />
 
-        <meta
-          property="og:title"
-          content="Tus Comercios"
-        />
+        <meta property="og:title" content="Tus Comercios" />
 
         <meta
           property="og:description"
           content="La nueva plataforma de comercios de Argentina."
         />
 
-        <meta
-          property="og:type"
-          content="website"
-        />
+        <meta property="og:type" content="website" />
 
-        <meta
-          property="og:url"
-          content="https://tuscomercios.com.ar"
-        />
+        <meta property="og:url" content="https://tuscomercios.com.ar" />
       </Helmet>
 
       <div className="min-h-screen bg-white text-slate-900">
@@ -76,77 +67,72 @@ function Home() {
   );
 }
 
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    async function registerPageView() {
+      await supabase.from("page_events").insert([
+        {
+          event_type: "page_view",
+          path: location.pathname,
+        },
+      ]);
+    }
+
+    registerPageView();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleSearchEvent = async (e) => {
+      await supabase.from("page_events").insert([
+        {
+          event_type: "search",
+          path: window.location.pathname,
+          search: e.detail?.search || "",
+          city: e.detail?.city || "",
+        },
+      ]);
+    };
+
+    window.addEventListener("search", handleSearchEvent);
+
+    return () => window.removeEventListener("search", handleSearchEvent);
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   return (
-    <Routes>
-      {/* 🏠 HOME */}
-      <Route
-        path="/"
-        element={<Home />}
-      />
+    <>
+      <AnalyticsTracker />
 
-      {/* 👤 USUARIO */}
-      <Route
-        path="/register"
-        element={<Register />}
-      />
+      <Routes>
+        <Route path="/" element={<Home />} />
 
-      <Route
-        path="/login"
-        element={<Auth />}
-      />
+        <Route path="/register" element={<Register />} />
 
-      {/* 📋 PLANES */}
-      <Route
-        path="/planes"
-        element={<PlansPage />}
-      />
+        <Route path="/login" element={<Auth />} />
 
-      {/* 🏪 CREAR / EDITAR NEGOCIO */}
-      <Route
-        path="/register-business"
-        element={<RegisterBusiness />}
-      />
+        <Route path="/planes" element={<PlansPage />} />
 
-      <Route
-        path="/editar/:id"
-        element={<RegisterBusiness />}
-      />
+        <Route path="/register-business" element={<RegisterBusiness />} />
 
-      {/* 🎯 CREAR / EDITAR BANNER */}
-      <Route
-        path="/crear-banner"
-        element={<RegisterBanner />}
-      />
+        <Route path="/editar/:id" element={<RegisterBusiness />} />
 
-      <Route
-        path="/editar-banner/:id"
-        element={<EditBanner />}
-      />
+        <Route path="/crear-banner" element={<RegisterBanner />} />
 
-      {/* 👤 DASHBOARD */}
-      <Route
-        path="/dashboard"
-        element={<Dashboard />}
-      />
+        <Route path="/editar-banner/:id" element={<EditBanner />} />
 
-      {/* 🎉 SUCCESS */}
-      <Route
-        path="/success"
-        element={<Success />}
-      />
+        <Route path="/dashboard" element={<Dashboard />} />
 
-      {/* 📂 CATEGORÍAS */}
-      <Route
-        path="/categoria/:rubro/:ciudad"
-        element={<CategoryPage />}
-      />
+        <Route path="/success" element={<Success />} />
 
-      {/* 🏪 NEGOCIO */}
-      <Route
-        path="/:slug"
-        element={<BusinessView />}
-      />
-    </Routes>
+        <Route path="/categoria/:rubro/:ciudad" element={<CategoryPage />} />
+
+        <Route path="/:slug" element={<BusinessView />} />
+      </Routes>
+    </>
   );
 }

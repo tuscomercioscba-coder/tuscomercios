@@ -54,10 +54,27 @@ export default function BusinessDirectory() {
       .trim();
   }
 
-  function normalizePlan(plan) {
+    function normalizePlan(plan) {
     const clean = normalizeText(plan || "free");
-    if (clean === "premium") return "premium";
-    if (clean === "standard") return "standard";
+
+    if (
+      clean === "premium" ||
+      clean === "premiun" ||
+      clean === "plan premium"
+    ) {
+      return "premium";
+    }
+
+    if (
+      clean === "standard" ||
+      clean === "estandar" ||
+      clean === "estándar" ||
+      clean === "plan standard" ||
+      clean === "plan estandar"
+    ) {
+      return "standard";
+    }
+
     return "free";
   }
 

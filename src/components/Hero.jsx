@@ -1,4 +1,15 @@
+import { supabase } from "../supabase";
+
 export default function Hero() {
+  async function registerEvent(eventType) {
+    await supabase.from("page_events").insert([
+      {
+        event_type: eventType,
+        path: window.location.pathname,
+      },
+    ]);
+  }
+
   return (
     <section className="bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white">
       <div className="max-w-6xl mx-auto px-6 py-20 md:py-28 grid md:grid-cols-2 gap-10 items-center">
@@ -21,6 +32,7 @@ export default function Hero() {
               href="https://wa.me/5493544573187"
               target="_blank"
               rel="noreferrer"
+              onClick={() => registerEvent("click_publish_whatsapp")}
               className="bg-white text-blue-700 hover:bg-blue-50 px-6 py-4 rounded-2xl font-bold text-center transition"
             >
               Publicar mi negocio
@@ -28,6 +40,7 @@ export default function Hero() {
 
             <a
               href="#destacados"
+              onClick={() => registerEvent("click_featured_businesses")}
               className="bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-4 rounded-2xl font-bold text-center transition"
             >
               Ver negocios destacados
@@ -41,6 +54,7 @@ export default function Hero() {
               <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl">
                 🏪
               </div>
+
               <div>
                 <h3 className="font-extrabold text-xl">Tu negocio aquí</h3>
                 <p className="text-sm text-gray-500">Más visibilidad, más ventas</p>
@@ -51,9 +65,11 @@ export default function Hero() {
               <div className="bg-gray-100 rounded-2xl p-4">
                 <p className="font-semibold">✔ Publicación profesional</p>
               </div>
+
               <div className="bg-gray-100 rounded-2xl p-4">
                 <p className="font-semibold">✔ Contacto directo por WhatsApp</p>
               </div>
+
               <div className="bg-gray-100 rounded-2xl p-4">
                 <p className="font-semibold">✔ Mayor alcance local</p>
               </div>
@@ -63,6 +79,7 @@ export default function Hero() {
               href="https://wa.me/5493544573187"
               target="_blank"
               rel="noreferrer"
+              onClick={() => registerEvent("click_quiero_aparecer")}
               className="mt-6 block w-full text-center bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-bold transition"
             >
               Quiero aparecer aquí
