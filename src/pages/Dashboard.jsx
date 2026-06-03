@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [profiles, setProfiles] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [pageEvents, setPageEvents] = useState([]);
   const [myUserId, setMyUserId] = useState(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -66,6 +67,11 @@ export default function Dashboard() {
       .from("views")
       .select("business_id");
 
+    const { data: pageEventsData } = await supabase
+      .from("page_events")
+      .select("*")
+      .order("created_at", { ascending: false });
+
     const groupedClicks = groupByBusiness(clicksData || []);
     const groupedVisits = groupByBusiness(visitsData || []);
     const groupedViews = groupByBusiness(viewsData || []);
@@ -73,12 +79,13 @@ export default function Dashboard() {
     setClicksByBusiness(groupedClicks);
     setVisitsByBusiness(groupedVisits);
     setViewsByBusiness(groupedViews);
+    setPageEvents(pageEventsData || []);
 
     const sortedMyBusinesses = [...(myBusinesses || [])].sort((a, b) => {
       return (groupedClicks[b.id] || 0) - (groupedClicks[a.id] || 0);
     });
 
-        setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
+    setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
     setAllBusinesses(sortBusinessesByPlan(allData || []));
 
     let bannersQuery = supabase.from("banners").select(`
@@ -123,7 +130,7 @@ export default function Dashboard() {
     return grouped;
   }
 
-    function sortBusinessesByPlan(list) {
+  function sortBusinessesByPlan(list) {
     const planOrder = {
       premium: 1,
       standard: 2,
@@ -180,7 +187,6 @@ export default function Dashboard() {
   }
 
   const totalClicks = Object.values(clicksByBusiness).reduce((a, b) => a + b, 0);
-  const totalVisits = Object.values(visitsByBusiness).reduce((a, b) => a + b, 0);
   const totalViews = Object.values(viewsByBusiness).reduce((a, b) => a + b, 0);
 
   const activeSubscriptions = subscriptions.filter(
@@ -222,16 +228,16 @@ export default function Dashboard() {
 
     if (filtered.length === 0) return null;
 
-    let avgVisits = 0;
+    let avgViews = 0;
     let avgClicks = 0;
 
     filtered.forEach((b) => {
-      avgVisits += visitsByBusiness[b.id] || 0;
+      avgViews += viewsByBusiness[b.id] || 0;
       avgClicks += clicksByBusiness[b.id] || 0;
     });
 
     return {
-      avgVisits: Math.round(avgVisits / filtered.length),
+      avgViews: Math.round(avgViews / filtered.length),
       avgClicks: Math.round(avgClicks / filtered.length),
     };
   }
@@ -381,9 +387,7 @@ export default function Dashboard() {
             <div className="flex gap-3 flex-wrap">
               {isAdmin && (
                 <button
-                  onClick={() =>
-                    navigate("/register-business?admin=true")
-                  }
+                  onClick={() => navigate("/register-business?admin=true")}
                   className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
                 >
                   + Crear negocio Admin
@@ -425,6 +429,7 @@ export default function Dashboard() {
                 ["suscripciones", "Suscripciones"],
                 ["banners", "Banners"],
                 ["metricas", "Métricas"],
+                ["analiticas", "Analíticas"],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -447,7 +452,7 @@ export default function Dashboard() {
                 items={[
                   ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
                   ["Mis banners", banners.length, "bg-pink-50", "text-pink-700"],
-                  ["Total visitas", totalVisits, "bg-blue-50", "text-blue-700"],
+                  ["Vistas", totalViews, "bg-blue-50", "text-blue-700"],
                   ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
                 ]}
               />
@@ -465,51 +470,6 @@ export default function Dashboard() {
               <BusinessCards
                 businesses={businesses}
                 clicksByBusiness={clicksByBusiness}
-                visitsByBusiness={visitsByBusiness}
-                viewsByBusiness={viewsByBusiness}
-                getComparison={getComparison}
-                navigate={navigate}
-                deleteBusiness={deleteBusiness}
-                cancelBusinessPlan={cancelBusinessPlan}
-              />
-            </>
-          )}
-
-          {isAdmin && activeTab === "mis-negocios" && (
-            <>
-              <StatsGrid
-                items={[
-                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
-                  ["Mis banners", banners.filter((b) => b.user_id === myUserId).length, "bg-pink-50", "text-pink-700"],
-                  [
-                    "Mis visitas",
-                    businesses.reduce((total, b) => total + (visitsByBusiness[b.id] || 0), 0),
-                    "bg-blue-50",
-                    "text-blue-700",
-                  ],
-                  [
-                    "Mis WhatsApp",
-                    businesses.reduce((total, b) => total + (clicksByBusiness[b.id] || 0), 0),
-                    "bg-green-50",
-                    "text-green-700",
-                  ],
-                ]}
-              />
-
-              <BannerCTA canCreateBanner={true} navigate={navigate} isAdmin />
-
-              <UserBanners
-                banners={banners.filter((b) => b.user_id === myUserId)}
-                navigate={navigate}
-                goToBannerBusiness={goToBannerBusiness}
-                cancelBanner={cancelBanner}
-                toggleBannerActive={toggleBannerActive}
-              />
-
-              <BusinessCards
-                businesses={businesses}
-                clicksByBusiness={clicksByBusiness}
-                visitsByBusiness={visitsByBusiness}
                 viewsByBusiness={viewsByBusiness}
                 getComparison={getComparison}
                 navigate={navigate}
@@ -530,7 +490,7 @@ export default function Dashboard() {
                   ["Ingresos reales", money(realMonthlyIncome), "bg-purple-50", "text-purple-700"],
                   ["Banners", banners.length, "bg-pink-50", "text-pink-700"],
                   ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
-                  ["Visitas", totalVisits, "bg-blue-50", "text-blue-700"],
+                  ["Vistas vidrieras", totalViews, "bg-blue-50", "text-blue-700"],
                 ]}
               />
 
@@ -571,6 +531,49 @@ export default function Dashboard() {
                   </button>
                 </AdminBox>
               </div>
+            </>
+          )}
+
+          {isAdmin && activeTab === "mis-negocios" && (
+            <>
+              <StatsGrid
+                items={[
+                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
+                  ["Mis banners", banners.filter((b) => b.user_id === myUserId).length, "bg-pink-50", "text-pink-700"],
+                  [
+                    "Mis vistas",
+                    businesses.reduce((total, b) => total + (viewsByBusiness[b.id] || 0), 0),
+                    "bg-blue-50",
+                    "text-blue-700",
+                  ],
+                  [
+                    "Mis WhatsApp",
+                    businesses.reduce((total, b) => total + (clicksByBusiness[b.id] || 0), 0),
+                    "bg-green-50",
+                    "text-green-700",
+                  ],
+                ]}
+              />
+
+              <BannerCTA canCreateBanner={true} navigate={navigate} isAdmin />
+
+              <UserBanners
+                banners={banners.filter((b) => b.user_id === myUserId)}
+                navigate={navigate}
+                goToBannerBusiness={goToBannerBusiness}
+                cancelBanner={cancelBanner}
+                toggleBannerActive={toggleBannerActive}
+              />
+
+              <BusinessCards
+                businesses={businesses}
+                clicksByBusiness={clicksByBusiness}
+                viewsByBusiness={viewsByBusiness}
+                getComparison={getComparison}
+                navigate={navigate}
+                deleteBusiness={deleteBusiness}
+                cancelBusinessPlan={cancelBusinessPlan}
+              />
             </>
           )}
 
@@ -746,14 +749,14 @@ export default function Dashboard() {
                   <tr className="text-left border-b">
                     <th className="p-3">Negocio</th>
                     <th className="p-3">Plan</th>
-                    <th className="p-3">Clicks</th>
                     <th className="p-3">Vistas</th>
+                    <th className="p-3">Clicks WhatsApp</th>
                     <th className="p-3">Conversión</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {sortBusinessesByPlan(allBusinesses)
+                  {[...allBusinesses]
                     .sort(
                       (a, b) =>
                         (clicksByBusiness[b.id] || 0) -
@@ -777,6 +780,10 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </AdminTable>
+          )}
+
+          {isAdmin && activeTab === "analiticas" && (
+            <AdminAnalytics pageEvents={pageEvents} />
           )}
         </div>
       </div>
@@ -989,7 +996,6 @@ function AdminTable({ title, children }) {
 function BusinessCards({
   businesses,
   clicksByBusiness,
-  visitsByBusiness,
   viewsByBusiness,
   getComparison,
   navigate,
@@ -1039,9 +1045,9 @@ function BusinessCards({
               <p className="text-sm mt-3 line-clamp-2 text-gray-600">{b.descripcion}</p>
 
               <div className="grid grid-cols-3 gap-3 mt-5">
-                <div className="bg-slate-50 p-3 rounded-2xl text-center">
-                  <p className="text-xs text-gray-500">Visitas</p>
-                  <p className="text-2xl font-bold">{visitsByBusiness[b.id] || 0}</p>
+                <div className="bg-blue-50 p-3 rounded-2xl text-center">
+                  <p className="text-xs text-gray-500">Vistas</p>
+                  <p className="text-2xl font-bold text-blue-700">{viewsByBusiness[b.id] || 0}</p>
                 </div>
 
                 <div className="bg-green-50 p-3 rounded-2xl text-center">
@@ -1049,9 +1055,14 @@ function BusinessCards({
                   <p className="text-2xl font-bold text-green-700">{clicksByBusiness[b.id] || 0}</p>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded-2xl text-center">
-                  <p className="text-xs text-gray-500">Views</p>
-                  <p className="text-2xl font-bold text-blue-700">{viewsByBusiness[b.id] || 0}</p>
+                <div className="bg-slate-50 p-3 rounded-2xl text-center">
+                  <p className="text-xs text-gray-500">Conversión</p>
+                  <p className="text-2xl font-bold">
+                    {viewsByBusiness[b.id]
+                      ? Math.round(((clicksByBusiness[b.id] || 0) / viewsByBusiness[b.id]) * 100)
+                      : 0}
+                    %
+                  </p>
                 </div>
               </div>
 
@@ -1065,8 +1076,8 @@ function BusinessCards({
 
                   <div className="grid grid-cols-2 gap-3 mt-4">
                     <div className="bg-white p-3 rounded-xl border">
-                      <p className="text-xs text-gray-500">Visitas promedio</p>
-                      <p className="text-xl font-bold">{comparison.avgVisits}</p>
+                      <p className="text-xs text-gray-500">Vistas promedio</p>
+                      <p className="text-xl font-bold">{comparison.avgViews}</p>
                     </div>
 
                     <div className="bg-white p-3 rounded-xl border">
@@ -1130,6 +1141,171 @@ function BusinessCards({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function AdminAnalytics({ pageEvents }) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const todayEvents = pageEvents.filter((event) =>
+    event.created_at?.startsWith(today)
+  );
+
+  const pageViewsToday = todayEvents.filter(
+    (event) => event.event_type === "page_view"
+  ).length;
+
+  const searchesToday = todayEvents.filter(
+    (event) => event.event_type === "search"
+  ).length;
+
+  const publishClicksToday = todayEvents.filter(
+    (event) =>
+      event.event_type === "click_publish_whatsapp" ||
+      event.event_type === "click_quiero_aparecer"
+  ).length;
+
+  const dashboardClicksToday = todayEvents.filter(
+    (event) => event.event_type === "click_dashboard_button"
+  ).length;
+
+  const totalPageViews = pageEvents.filter(
+    (event) => event.event_type === "page_view"
+  ).length;
+
+  const totalSearches = pageEvents.filter(
+    (event) => event.event_type === "search"
+  ).length;
+
+  const totalPublishClicks = pageEvents.filter(
+    (event) =>
+      event.event_type === "click_publish_whatsapp" ||
+      event.event_type === "click_quiero_aparecer"
+  ).length;
+
+  const lastSearches = pageEvents
+    .filter((event) => event.event_type === "search")
+    .slice(0, 20);
+
+  const mostVisitedPages = Object.entries(
+    pageEvents
+      .filter((event) => event.event_type === "page_view")
+      .reduce((acc, event) => {
+        const path = event.path || "/";
+        acc[path] = (acc[path] || 0) + 1;
+        return acc;
+      }, {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  function formatDate(date) {
+    if (!date) return "-";
+
+    return new Date(date).toLocaleString("es-AR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  }
+
+  return (
+    <div className="space-y-8">
+      <StatsGrid
+        items={[
+          ["Visitas hoy", pageViewsToday, "bg-blue-50", "text-blue-700"],
+          ["Búsquedas hoy", searchesToday, "bg-purple-50", "text-purple-700"],
+          ["Interés en publicar hoy", publishClicksToday, "bg-green-50", "text-green-700"],
+          ["Entradas al panel hoy", dashboardClicksToday, "bg-orange-50", "text-orange-700"],
+        ]}
+      />
+
+      <StatsGrid
+        items={[
+          ["Visitas totales", totalPageViews, "bg-white", "text-slate-800"],
+          ["Búsquedas totales", totalSearches, "bg-white", "text-slate-800"],
+          ["Clicks publicar negocio", totalPublishClicks, "bg-white", "text-slate-800"],
+          ["Eventos registrados", pageEvents.length, "bg-white", "text-slate-800"],
+        ]}
+      />
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <AdminTable title="Páginas más visitadas">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-3">Página</th>
+                <th className="p-3">Visitas</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {mostVisitedPages.map(([path, count]) => (
+                <tr key={path} className="border-b">
+                  <td className="p-3 font-bold">{path}</td>
+                  <td className="p-3">{count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </AdminTable>
+
+        <AdminTable title="Últimas búsquedas">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-3">Búsqueda</th>
+                <th className="p-3">Ciudad</th>
+                <th className="p-3">Fecha</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {lastSearches.length === 0 && (
+                <tr>
+                  <td className="p-3 text-gray-500" colSpan="3">
+                    Todavía no hay búsquedas registradas.
+                  </td>
+                </tr>
+              )}
+
+              {lastSearches.map((event) => (
+                <tr key={event.id} className="border-b">
+                  <td className="p-3 font-bold">{event.search || "-"}</td>
+                  <td className="p-3">{event.city || "-"}</td>
+                  <td className="p-3">{formatDate(event.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </AdminTable>
+      </div>
+
+      <AdminTable title="Últimos eventos registrados">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b">
+              <th className="p-3">Evento</th>
+              <th className="p-3">Página</th>
+              <th className="p-3">Búsqueda</th>
+              <th className="p-3">Ciudad</th>
+              <th className="p-3">Fecha</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {pageEvents.slice(0, 50).map((event) => (
+              <tr key={event.id} className="border-b">
+                <td className="p-3 font-bold">{event.event_type}</td>
+                <td className="p-3">{event.path || "-"}</td>
+                <td className="p-3">{event.search || "-"}</td>
+                <td className="p-3">{event.city || "-"}</td>
+                <td className="p-3">{formatDate(event.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </AdminTable>
     </div>
   );
 }
