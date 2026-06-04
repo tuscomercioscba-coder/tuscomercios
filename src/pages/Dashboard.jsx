@@ -1146,7 +1146,11 @@ function BusinessCards({
 }
 
 function AdminAnalytics({ pageEvents }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(
+  new Date().getTime() - 3 * 60 * 60 * 1000
+)
+  .toISOString()
+  .slice(0, 10);
 
   const todayEvents = pageEvents.filter((event) =>
     event.created_at?.startsWith(today)
