@@ -72,10 +72,23 @@ function AnalyticsTracker() {
 
   useEffect(() => {
     async function registerPageView() {
+      let city = "";
+
+      try {
+        const pathParts = location.pathname.split("/");
+
+        if (location.pathname.startsWith("/categoria/") && pathParts.length > 3) {
+          city = decodeURIComponent(pathParts[3] || "");
+        }
+      } catch (error) {
+        console.log(error);
+      }
+
       await supabase.from("page_events").insert([
         {
           event_type: "page_view",
           path: location.pathname,
+          business_city: city,
         },
       ]);
     }
@@ -91,6 +104,7 @@ function AnalyticsTracker() {
           path: window.location.pathname,
           search: e.detail?.search || "",
           city: e.detail?.city || "",
+          business_city: e.detail?.city || "",
         },
       ]);
     };

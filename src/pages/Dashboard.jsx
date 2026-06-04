@@ -783,7 +783,12 @@ export default function Dashboard() {
           )}
 
           {isAdmin && activeTab === "analiticas" && (
-            <AdminAnalytics pageEvents={pageEvents} />
+            <AdminAnalytics
+              pageEvents={pageEvents}
+              allBusinesses={allBusinesses}
+              viewsByBusiness={viewsByBusiness}
+              clicksByBusiness={clicksByBusiness}
+            />
           )}
         </div>
       </div>
@@ -1145,15 +1150,41 @@ function BusinessCards({
   );
 }
 
-function AdminAnalytics({ pageEvents }) {
-  const today = new Date(
-  new Date().getTime() - 3 * 60 * 60 * 1000
-)
-  .toISOString()
-  .slice(0, 10);
+function AdminAnalytics({
+  pageEvents,
+  allBusinesses,
+  viewsByBusiness,
+  clicksByBusiness,
+}) {
+  function argentinaDateKey(date) {
+    if (!date) return "";
 
-  const todayEvents = pageEvents.filter((event) =>
-    event.created_at?.startsWith(today)
+    return new Date(date).toLocaleDateString("en-CA", {
+      timeZone: "America/Argentina/Cordoba",
+    });
+  }
+
+  function formatDate(date) {
+    if (!date) return "-";
+
+    return new Date(date).toLocaleString("es-AR", {
+      timeZone: "America/Argentina/Cordoba",
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  }
+
+  function normalizeCity(city) {
+    const clean = (city || "").toString().trim();
+    return clean || "Sin localidad";
+  }
+
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Argentina/Cordoba",
+  });
+
+  const todayEvents = pageEvents.filter(
+    (event) => argentinaDateKey(event.created_at) === today
   );
 
   const pageViewsToday = todayEvents.filter(
@@ -1188,6 +1219,63 @@ function AdminAnalytics({ pageEvents }) {
       event.event_type === "click_quiero_aparecer"
   ).length;
 
+  const businessCityStats = Object.values(
+    (allBusinesses || []).reduce((acc, business) => {
+      const city = normalizeCity(business.ciudad);
+
+      if (!acc[city]) {
+        acc[city] = {
+          city,
+          businesses: 0,
+          views: 0,
+          clicks: 0,
+        };
+      }
+
+      acc[city].businesses += 1;
+      acc[city].views += viewsByBusiness[business.id] || 0;
+      acc[city].clicks += clicksByBusiness[business.id] || 0;
+
+      return acc;
+    }, {})
+  ).sort((a, b) => b.views - a.views || b.clicks - a.clicks);
+
+  const searchCityStats = Object.values(
+    pageEvents
+      .filter((event) => event.event_type === "search")
+      .reduce((acc, event) => {
+        const city = normalizeCity(event.city || event.business_city);
+
+        if (!acc[city]) {
+          acc[city] = {
+            city,
+            searches: 0,
+          };
+        }
+
+        acc[city].searches += 1;
+
+        return acc;
+      }, {})
+  ).sort((a, b) => b.searches - a.searches);
+
+  const generalCityEvents = Object.values(
+    pageEvents.reduce((acc, event) => {
+      const city = normalizeCity(event.business_city || event.city);
+
+      if (!acc[city]) {
+        acc[city] = {
+          city,
+          events: 0,
+        };
+      }
+
+      acc[city].events += 1;
+
+      return acc;
+    }, {})
+  ).sort((a, b) => b.events - a.events);
+
   const lastSearches = pageEvents
     .filter((event) => event.event_type === "search")
     .slice(0, 20);
@@ -1204,34 +1292,115 @@ function AdminAnalytics({ pageEvents }) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15);
 
-  function formatDate(date) {
-    if (!date) return "-";
-
-    return new Date(date).toLocaleString("es-AR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  }
-
   return (
     <div className="space-y-8">
       <StatsGrid
         items={[
           ["Visitas hoy", pageViewsToday, "bg-blue-50", "text-blue-700"],
           ["Búsquedas hoy", searchesToday, "bg-purple-50", "text-purple-700"],
-          ["Interés en publicar hoy", publishClicksToday, "bg-green-50", "text-green-700"],
-          ["Entradas al panel hoy", dashboardClicksToday, "bg-orange-50", "text-orange-700"],
+          ["Interés publicar", publishClicksToday, "bg-green-50", "text-green-700"],
+          ["Panel hoy", dashboardClicksToday, "bg-orange-50", "text-orange-700"],
         ]}
       />
 
       <StatsGrid
         items={[
           ["Visitas totales", totalPageViews, "bg-white", "text-slate-800"],
-          ["Búsquedas totales", totalSearches, "bg-white", "text-slate-800"],
-          ["Clicks publicar negocio", totalPublishClicks, "bg-white", "text-slate-800"],
-          ["Eventos registrados", pageEvents.length, "bg-white", "text-slate-800"],
+          ["Búsquedas", totalSearches, "bg-white", "text-slate-800"],
+          ["Clicks publicar", totalPublishClicks, "bg-white", "text-slate-800"],
+          ["Eventos", pageEvents.length, "bg-white", "text-slate-800"],
         ]}
       />
+
+      <AdminTable title="📍 Rendimiento por localidad de comercios">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b">
+              <th className="p-3">Localidad</th>
+              <th className="p-3">Comercios</th>
+              <th className="p-3">Vistas vidrieras</th>
+              <th className="p-3">Clicks WhatsApp</th>
+              <th className="p-3">Conversión</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {businessCityStats.length === 0 && (
+              <tr>
+                <td className="p-3 text-gray-500" colSpan="5">
+                  Todavía no hay localidades con comercios cargados.
+                </td>
+              </tr>
+            )}
+
+            {businessCityStats.map((item) => {
+              const conversion = item.views
+                ? Math.round((item.clicks / item.views) * 100)
+                : 0;
+
+              return (
+                <tr key={item.city} className="border-b">
+                  <td className="p-3 font-bold">{item.city}</td>
+                  <td className="p-3">{item.businesses}</td>
+                  <td className="p-3">{item.views}</td>
+                  <td className="p-3">{item.clicks}</td>
+                  <td className="p-3">{conversion}%</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </AdminTable>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <AdminTable title="🔎 Búsquedas por localidad">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-3">Localidad buscada</th>
+                <th className="p-3">Búsquedas</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {searchCityStats.length === 0 && (
+                <tr>
+                  <td className="p-3 text-gray-500" colSpan="2">
+                    Todavía no hay búsquedas por localidad.
+                  </td>
+                </tr>
+              )}
+
+              {searchCityStats.map((item) => (
+                <tr key={item.city} className="border-b">
+                  <td className="p-3 font-bold">{item.city}</td>
+                  <td className="p-3">{item.searches}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </AdminTable>
+
+        <AdminTable title="📌 Eventos generales por localidad">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="p-3">Localidad</th>
+                <th className="p-3">Eventos</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {generalCityEvents.map((item) => (
+                <tr key={item.city} className="border-b">
+                  <td className="p-3 font-bold">{item.city}</td>
+                  <td className="p-3">{item.events}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </AdminTable>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <AdminTable title="Páginas más visitadas">
@@ -1276,7 +1445,7 @@ function AdminAnalytics({ pageEvents }) {
               {lastSearches.map((event) => (
                 <tr key={event.id} className="border-b">
                   <td className="p-3 font-bold">{event.search || "-"}</td>
-                  <td className="p-3">{event.city || "-"}</td>
+                  <td className="p-3">{event.city || event.business_city || "-"}</td>
                   <td className="p-3">{formatDate(event.created_at)}</td>
                 </tr>
               ))}
@@ -1303,7 +1472,7 @@ function AdminAnalytics({ pageEvents }) {
                 <td className="p-3 font-bold">{event.event_type}</td>
                 <td className="p-3">{event.path || "-"}</td>
                 <td className="p-3">{event.search || "-"}</td>
-                <td className="p-3">{event.city || "-"}</td>
+                <td className="p-3">{event.city || event.business_city || "-"}</td>
                 <td className="p-3">{formatDate(event.created_at)}</td>
               </tr>
             ))}

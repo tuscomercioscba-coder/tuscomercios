@@ -219,6 +219,10 @@ export default function BusinessView() {
     return "Negocio Premium destacado en Tus Comercios.";
   };
 
+  async function handleWhatsappClick() {
+    await registerWhatsappClick(business.id);
+  }
+
   async function shareBusiness() {
     const shareData = {
       title: business.negocio,
@@ -287,7 +291,7 @@ export default function BusinessView() {
         <meta name="twitter:image" content={business.image || currentImage} />
       </Helmet>
 
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-6xl mx-auto p-4 pb-28 md:pb-4">
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="md:w-1/2">
@@ -406,10 +410,8 @@ export default function BusinessView() {
                   href={whatsappLink}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={async () => {
-                    await registerWhatsappClick(business.id);
-                  }}
-                  className="mt-6 bg-green-600 text-white py-3 rounded-xl text-center font-bold text-lg hover:bg-green-700 transition"
+                  onClick={handleWhatsappClick}
+                  className="hidden md:block mt-6 bg-green-600 text-white py-3 rounded-xl text-center font-bold text-lg hover:bg-green-700 transition"
                 >
                   💬 Contactar por WhatsApp
                 </a>
@@ -468,6 +470,20 @@ export default function BusinessView() {
           </div>
         </div>
       </div>
+
+      {whatsappNumber && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 p-3 shadow-2xl">
+          <a
+            href={whatsappLink}
+            target="_blank"
+            rel="noreferrer"
+            onClick={handleWhatsappClick}
+            className="block w-full bg-green-600 text-white py-4 rounded-2xl text-center font-black text-lg shadow-lg active:scale-[0.98] transition"
+          >
+            💬 Contactar por WhatsApp
+          </a>
+        </div>
+      )}
 
       {lightboxOpen && (
         <div
