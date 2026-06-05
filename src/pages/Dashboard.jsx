@@ -55,25 +55,43 @@ export default function Dashboard() {
     .select("*")
     .eq("user_id", userId);
 
-  const { data: clicksData } = await supabase
-    .from("clicks")
-    .select("business_id");
+  async function countRowsByBusiness(tableName, businessList) {
+    const result = {};
 
-  const { data: viewsData } = await supabase
-    .from("views")
-    .select("business_id");
+    await Promise.all(
+      (businessList || []).map(async (business) => {
+        const { count, error } = await supabase
+          .from(tableName)
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", business.id);
 
-  const { data: pageEventsData } = await supabase
-    .from("page_events")
-    .select("*")
-    .order("created_at", { ascending: false });
+        if (error) {
+          console.log(`Error contando ${tableName}:`, error);
+          result[business.id] = 0;
+        } else {
+          result[business.id] = count || 0;
+        }
+      })
+    );
 
-  const groupedClicks = groupByBusiness(clicksData || []);
-  const groupedViews = groupByBusiness(viewsData || []);
+    return result;
+  }
+
+  const businessesForMetrics = admin ? allData || [] : myBusinesses || [];
+
+  const groupedViews = await countRowsByBusiness("views", businessesForMetrics);
+  const groupedClicks = await countRowsByBusiness("clicks", businessesForMetrics);
 
   setClicksByBusiness(groupedClicks);
   setVisitsByBusiness({});
   setViewsByBusiness(groupedViews);
+
+  const { data: pageEventsData } = await supabase
+    .from("page_events")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(5000);
+
   setPageEvents(pageEventsData || []);
 
   const sortedMyBusinesses = [...(myBusinesses || [])].sort((a, b) => {
