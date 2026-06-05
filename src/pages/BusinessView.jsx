@@ -57,6 +57,12 @@ export default function BusinessView() {
   async function registerView(businessId) {
     if (!businessId) return;
 
+    const sessionKey = `tc_view_${businessId}`;
+
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    sessionStorage.setItem(sessionKey, "true");
+
     const { error } = await supabase.from("views").insert([
       {
         business_id: businessId,
@@ -64,24 +70,6 @@ export default function BusinessView() {
     ]);
 
     if (error) console.log("Error guardando view:", error);
-  }
-
-  async function registerVisit(businessId) {
-    if (!businessId) return;
-
-    const sessionKey = `tc_visit_${businessId}`;
-
-    if (sessionStorage.getItem(sessionKey)) return;
-
-    sessionStorage.setItem(sessionKey, "true");
-
-    const { error } = await supabase.from("visits").insert([
-      {
-        business_id: businessId,
-      },
-    ]);
-
-    if (error) console.log("Error guardando visita:", error);
   }
 
   async function registerWhatsappClick(businessId) {
@@ -112,7 +100,6 @@ export default function BusinessView() {
 
     if (data?.id) {
       await registerView(data.id);
-      await registerVisit(data.id);
     }
   }
 

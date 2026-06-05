@@ -27,98 +27,93 @@ export default function Dashboard() {
   }, []);
 
   async function getData() {
-    setLoading(true);
+  setLoading(true);
 
-    const { data: userData } = await supabase.auth.getUser();
+  const { data: userData } = await supabase.auth.getUser();
 
-    if (!userData.user) {
-      window.location.href = "/login";
-      return;
-    }
+  if (!userData.user) {
+    window.location.href = "/login";
+    return;
+  }
 
-    const userId = userData.user.id;
-    setMyUserId(userId);
+  const userId = userData.user.id;
+  setMyUserId(userId);
 
-    const { data: myProfile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
 
-    const admin = myProfile?.role === "admin";
-    setIsAdmin(admin);
+  const admin = myProfile?.role === "admin";
+  setIsAdmin(admin);
 
-    const { data: allData } = await supabase.from("businesses").select("*");
+  const { data: allData } = await supabase.from("businesses").select("*");
 
-    const { data: myBusinesses } = await supabase
-      .from("businesses")
-      .select("*")
-      .eq("user_id", userId);
+  const { data: myBusinesses } = await supabase
+    .from("businesses")
+    .select("*")
+    .eq("user_id", userId);
 
-    const { data: clicksData } = await supabase
-      .from("clicks")
-      .select("business_id");
+  const { data: clicksData } = await supabase
+    .from("clicks")
+    .select("business_id");
 
-    const { data: visitsData } = await supabase
-      .from("visits")
-      .select("business_id");
+  const { data: viewsData } = await supabase
+    .from("views")
+    .select("business_id");
 
-    const { data: viewsData } = await supabase
-      .from("views")
-      .select("business_id");
+  const { data: pageEventsData } = await supabase
+    .from("page_events")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    const { data: pageEventsData } = await supabase
-      .from("page_events")
+  const groupedClicks = groupByBusiness(clicksData || []);
+  const groupedViews = groupByBusiness(viewsData || []);
+
+  setClicksByBusiness(groupedClicks);
+  setVisitsByBusiness({});
+  setViewsByBusiness(groupedViews);
+  setPageEvents(pageEventsData || []);
+
+  const sortedMyBusinesses = [...(myBusinesses || [])].sort((a, b) => {
+    return (groupedClicks[b.id] || 0) - (groupedClicks[a.id] || 0);
+  });
+
+  setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
+  setAllBusinesses(sortBusinessesByPlan(allData || []));
+
+  let bannersQuery = supabase.from("banners").select(`
+    *,
+    businesses (
+      id,
+      negocio,
+      slug,
+      user_id
+    )
+  `);
+
+  if (!admin) {
+    bannersQuery = bannersQuery.eq("user_id", userId);
+  }
+
+  const { data: bannersData } = await bannersQuery;
+  setBanners(bannersData || []);
+
+  if (admin) {
+    const { data: profilesData } = await supabase.from("profiles").select("*");
+
+    const { data: subscriptionsData } = await supabase
+      .from("subscriptions")
       .select("*")
       .order("created_at", { ascending: false });
 
-    const groupedClicks = groupByBusiness(clicksData || []);
-    const groupedVisits = groupByBusiness(visitsData || []);
-    const groupedViews = groupByBusiness(viewsData || []);
-
-    setClicksByBusiness(groupedClicks);
-    setVisitsByBusiness(groupedVisits);
-    setViewsByBusiness(groupedViews);
-    setPageEvents(pageEventsData || []);
-
-    const sortedMyBusinesses = [...(myBusinesses || [])].sort((a, b) => {
-      return (groupedClicks[b.id] || 0) - (groupedClicks[a.id] || 0);
-    });
-
-    setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
-    setAllBusinesses(sortBusinessesByPlan(allData || []));
-
-    let bannersQuery = supabase.from("banners").select(`
-      *,
-      businesses (
-        id,
-        negocio,
-        slug,
-        user_id
-      )
-    `);
-
-    if (!admin) {
-      bannersQuery = bannersQuery.eq("user_id", userId);
-    }
-
-    const { data: bannersData } = await bannersQuery;
-    setBanners(bannersData || []);
-
-    if (admin) {
-      const { data: profilesData } = await supabase.from("profiles").select("*");
-
-      const { data: subscriptionsData } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      setProfiles(profilesData || []);
-      setSubscriptions(subscriptionsData || []);
-    }
-
-    setLoading(false);
+    setProfiles(profilesData || []);
+    setSubscriptions(subscriptionsData || []);
   }
+
+  setLoading(false);
+}
 
   function groupByBusiness(rows) {
     const grouped = {};
