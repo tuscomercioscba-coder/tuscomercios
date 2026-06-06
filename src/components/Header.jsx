@@ -15,6 +15,7 @@ export default function Header() {
   const [city, setCity] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [user, setUser] = useState(null);
+  const [installPrompt, setInstallPrompt] = useState(null);
 
   const navigate = useNavigate();
 
@@ -27,7 +28,17 @@ export default function Header() {
       setUser(session?.user || null);
     });
 
-    return () => subscription.unsubscribe();
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
   }, []);
 
   async function getUser() {
@@ -36,6 +47,25 @@ export default function Header() {
     } = await supabase.auth.getSession();
 
     setUser(session?.user || null);
+  }
+
+  async function handleInstallApp() {
+    if (installPrompt) {
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      setInstallPrompt(null);
+      return;
+    }
+
+    const ua = navigator.userAgent.toLowerCase();
+    const isIos = ua.includes("iphone") || ua.includes("ipad");
+
+    if (isIos) {
+      alert("📲 Para instalar: tocá Compartir → Agregar a pantalla de inicio");
+      return;
+    }
+
+    alert("📲 Para instalar: abrí el menú del navegador y tocá 'Instalar app' o 'Agregar a pantalla principal'.");
   }
 
   async function handleLogout() {
@@ -83,7 +113,14 @@ export default function Header() {
 
   return (
     <header className="bg-white px-4 py-8 shadow-sm">
-      <div className="w-full flex justify-end items-center mb-6 gap-3 flex-wrap">
+      <div className="w-full flex justify-between items-center mb-6 gap-3">
+        <button
+          onClick={handleInstallApp}
+          className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-green-700 transition text-sm md:text-base shadow"
+        >
+          📲 Descargar app
+        </button>
+
         {!user ? (
           <button
             onClick={() => navigate("/login")}
@@ -92,7 +129,7 @@ export default function Header() {
             Ingresar
           </button>
         ) : (
-          <>
+          <div className="flex gap-2 flex-wrap justify-end">
             <button
               onClick={() => navigate("/")}
               className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-xl font-semibold hover:bg-gray-200 transition"
@@ -114,9 +151,9 @@ export default function Header() {
               className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-red-600 transition"
             >
               <LogOut size={18} />
-              Cerrar sesión
+              Salir
             </button>
-          </>
+          </div>
         )}
       </div>
 
