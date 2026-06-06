@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 
-export default function Layout({ children }) {
+export default function Layout({ children, fullWidth = false }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
@@ -45,27 +45,27 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow flex flex-wrap justify-between items-center gap-3 px-6 py-4">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+      <div className="bg-white shadow flex flex-wrap justify-between items-center gap-3 px-4 md:px-6 py-4">
         <img
           src="/logo.png"
           alt="Tus Comercios"
-          className="w-40 cursor-pointer"
+          className="w-36 md:w-40 cursor-pointer"
           onClick={async () => {
             await registerEvent("click_home_logo", "/");
             navigate("/");
           }}
         />
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-2 md:gap-3 flex-wrap">
           <button
             onClick={async () => {
               await registerEvent("click_home_button", "/");
               navigate("/");
             }}
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl font-semibold hover:bg-gray-300 transition"
+            className="bg-gray-200 text-gray-800 px-3 md:px-4 py-2 rounded-xl font-semibold hover:bg-gray-300 transition text-sm md:text-base"
           >
-            Ir al inicio
+            Inicio
           </button>
 
           {user ? (
@@ -75,22 +75,22 @@ export default function Layout({ children }) {
                   await registerEvent("click_dashboard_button", "/dashboard");
                   navigate("/dashboard");
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition"
+                className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition text-sm md:text-base"
               >
                 Mi panel
               </button>
 
               <button
                 onClick={handleLogout}
-                className="bg-red-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-red-600 transition"
+                className="bg-red-500 text-white px-3 md:px-4 py-2 rounded-xl font-semibold hover:bg-red-600 transition text-sm md:text-base"
               >
-                Cerrar sesión
+                Salir
               </button>
             </>
           ) : (
             <button
               onClick={() => navigate("/login")}
-              className="bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition"
+              className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition text-sm md:text-base"
             >
               Ingresar
             </button>
@@ -98,7 +98,7 @@ export default function Layout({ children }) {
         </div>
       </div>
 
-      <div className="p-6">{children}</div>
+      <div className={fullWidth ? "p-0" : "p-4 md:p-6"}>{children}</div>
     </div>
   );
 }

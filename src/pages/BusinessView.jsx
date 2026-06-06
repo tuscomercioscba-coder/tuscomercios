@@ -149,8 +149,10 @@ export default function BusinessView() {
 
   if (!business) {
     return (
-      <Layout>
-        <p className="text-center mt-10">Cargando...</p>
+      <Layout fullWidth>
+        <div className="min-h-[50vh] flex items-center justify-center">
+          <p className="text-center text-slate-500">Cargando vidriera...</p>
+        </div>
       </Layout>
     );
   }
@@ -172,7 +174,7 @@ export default function BusinessView() {
   }
 
   const currentImage =
-    images[index] || "https://placehold.co/800x500?text=Sin+Imagen";
+    images[index] || "https://placehold.co/1200x700?text=Tus+Comercios";
 
   const shareUrl = window.location.href;
   const shareText = `Mirá ${business.negocio} en Tus Comercios`;
@@ -194,16 +196,56 @@ export default function BusinessView() {
     business.email ||
     business.web;
 
+  const isPremium = business.plan === "premium";
+  const isStandard = business.plan === "standard";
+  const isFree = business.plan === "free";
+
+  const planLabel = isPremium
+    ? "Premium"
+    : isStandard
+    ? "Estándar"
+    : "Gratis";
+
   const getPlanMessage = () => {
-    if (business.plan === "free") {
+    if (isFree) {
       return "Este negocio forma parte de Tus Comercios.";
     }
 
-    if (business.plan === "standard") {
+    if (isStandard) {
       return "Negocio destacado en Tus Comercios.";
     }
 
     return "Negocio Premium destacado en Tus Comercios.";
+  };
+
+  const planStyles = {
+    heroOverlay: isPremium
+      ? "from-slate-950/95 via-slate-950/65 to-slate-950/15"
+      : isStandard
+      ? "from-blue-950/90 via-blue-900/60 to-blue-800/10"
+      : "from-white/95 via-white/80 to-white/20",
+
+    heroText: isFree ? "text-slate-950" : "text-white",
+
+    heroSubText: isFree ? "text-slate-700" : "text-white/85",
+
+    badge: isPremium
+      ? "bg-amber-400 text-slate-950"
+      : isStandard
+      ? "bg-violet-600 text-white"
+      : "bg-blue-600 text-white",
+
+    cardAccent: isPremium
+      ? "border-amber-200 bg-amber-50/70"
+      : isStandard
+      ? "border-violet-200 bg-violet-50/70"
+      : "border-blue-200 bg-blue-50/70",
+
+    footer: isPremium
+      ? "bg-slate-950 text-white"
+      : isStandard
+      ? "bg-blue-700 text-white"
+      : "bg-slate-900 text-white",
   };
 
   async function handleWhatsappClick() {
@@ -250,8 +292,10 @@ export default function BusinessView() {
     setIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   }
 
+  const visibleGallery = images.slice(0, isPremium ? 10 : isStandard ? 8 : 4);
+
   return (
-    <Layout>
+    <Layout fullWidth>
       <Helmet>
         <title>
           {business.negocio} en {business.ciudad} | Tus Comercios
@@ -265,197 +309,418 @@ export default function BusinessView() {
           }
         />
 
-        <meta property="og:title" content={`${business.negocio} | Tus Comercios`} />
+        <meta
+          property="og:title"
+          content={`${business.negocio} | Tus Comercios`}
+        />
         <meta property="og:description" content={business.descripcion} />
         <meta property="og:image" content={business.image || currentImage} />
-        <meta property="og:image:secure_url" content={business.image || currentImage} />
+        <meta
+          property="og:image:secure_url"
+          content={business.image || currentImage}
+        />
         <meta property="og:url" content={shareUrl} />
         <meta property="og:type" content="website" />
 
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${business.negocio} | Tus Comercios`} />
+        <meta
+          name="twitter:title"
+          content={`${business.negocio} | Tus Comercios`}
+        />
         <meta name="twitter:description" content={business.descripcion} />
         <meta name="twitter:image" content={business.image || currentImage} />
       </Helmet>
 
-      <div className="max-w-6xl mx-auto p-4 pb-28 md:pb-4">
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="md:w-1/2">
-              <div className="relative">
-                <img
-                  src={currentImage}
-                  alt={business.negocio}
-                  onClick={() => openImage(index)}
-                  onError={(e) => {
-                    e.target.src =
-                      "https://placehold.co/800x500?text=Sin+Imagen";
-                  }}
-                  className="w-full h-80 object-contain rounded-xl bg-gray-100 cursor-zoom-in hover:opacity-95 transition"
-                />
+      <div className="bg-slate-50 min-h-screen pb-28 md:pb-8">
+        <section className="relative overflow-hidden bg-slate-900">
+          <div
+            className="absolute inset-0 bg-cover bg-center scale-105"
+            style={{
+              backgroundImage: `url(${currentImage})`,
+            }}
+          />
 
-                {images.length > 0 && (
-                  <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-1 rounded-full">
-                    Ver fotos
+          <div
+            className={`absolute inset-0 bg-gradient-to-r ${planStyles.heroOverlay}`}
+          />
+
+          <div className="relative max-w-7xl mx-auto px-4 py-8 sm:py-10 md:py-16">
+            <div className="max-w-5xl">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5 md:gap-8">
+                <div
+                  onClick={() => openImage(index)}
+                  className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full bg-white shadow-2xl border-4 border-white overflow-hidden shrink-0 cursor-zoom-in"
+                >
+                  <img
+                    src={currentImage}
+                    alt={business.negocio}
+                    onError={(e) => {
+                      e.target.src =
+                        "https://placehold.co/400x400?text=Tus+Comercios";
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full text-xs font-black uppercase tracking-wide ${planStyles.badge}`}
+                    >
+                      {planLabel}
+                    </span>
+
+                    <span
+                      className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                        isOpenNow()
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {isOpenNow() ? "Abierto ahora" : "Cerrado"}
+                    </span>
                   </div>
-                )}
+
+                  <h1
+                    className={`text-3xl sm:text-4xl md:text-6xl font-black leading-tight ${planStyles.heroText}`}
+                  >
+                    {business.negocio}
+                  </h1>
+
+                  <p
+                    className={`mt-3 text-base sm:text-lg md:text-xl font-medium ${planStyles.heroSubText}`}
+                  >
+                    {business.descripcion
+                      ? business.descripcion.split(".")[0]
+                      : "Encontrá este comercio en Tus Comercios."}
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mt-5">
+                    <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur text-slate-800 px-4 py-3 rounded-2xl text-sm font-bold shadow">
+                      <span>📍</span>
+                      <span>
+                        {business.ciudad}, {business.provincia}
+                      </span>
+                    </div>
+
+                    {business.horarios && (
+                      <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur text-slate-800 px-4 py-3 rounded-2xl text-sm font-bold shadow">
+                        <span>🕒</span>
+                        <span>
+                          {formatHorario(
+                            business.horarios[
+                              [
+                                "domingo",
+                                "lunes",
+                                "martes",
+                                "miercoles",
+                                "jueves",
+                                "viernes",
+                                "sabado",
+                              ][new Date().getDay()]
+                            ] || "Cerrado"
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    {whatsappNumber ? (
+                      <a
+                        href={whatsappLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={handleWhatsappClick}
+                        className="hidden md:inline-flex justify-center items-center bg-green-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-green-700 transition"
+                      >
+                        💬 Contactar por WhatsApp
+                      </a>
+                    ) : (
+                      <div className="hidden md:inline-flex justify-center items-center bg-gray-200 text-gray-600 px-6 py-3 rounded-2xl font-black">
+                        WhatsApp no disponible
+                      </div>
+                    )}
+
+                    <button
+                      onClick={shareBusiness}
+                      className="inline-flex justify-center items-center bg-white/90 backdrop-blur text-slate-800 px-6 py-3 rounded-2xl font-black shadow hover:bg-white transition"
+                    >
+                      ↗ Compartir
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+        </section>
 
-            <div className="md:w-1/2 flex flex-col justify-between">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{business.negocio}</h1>
-
-                <p className="text-gray-500 mb-2">
-                  📍 {business.ciudad}, {business.provincia}
+        <main className="max-w-7xl mx-auto px-4 -mt-6 relative z-10">
+          <section className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100">
+              <div className="p-4 md:p-6 text-center">
+                <div className="text-2xl mb-2">✨</div>
+                <p className="font-black text-slate-900 text-sm md:text-base">
+                  Buena atención
                 </p>
+              </div>
 
-                <span
-                  className={`inline-block px-3 py-1 text-sm rounded-full font-bold mb-4 ${
-                    isOpenNow()
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
-                  {isOpenNow() ? "🟢 Abierto ahora" : "🔴 Cerrado"}
-                </span>
+              <div className="p-4 md:p-6 text-center">
+                <div className="text-2xl mb-2">📍</div>
+                <p className="font-black text-slate-900 text-sm md:text-base">
+                  Comercio local
+                </p>
+              </div>
 
-                <div className="whitespace-pre-line text-gray-800 leading-relaxed">
-                  {business.descripcion}
+              <div className="p-4 md:p-6 text-center">
+                <div className="text-2xl mb-2">💬</div>
+                <p className="font-black text-slate-900 text-sm md:text-base">
+                  Contacto directo
+                </p>
+              </div>
+
+              <div className="p-4 md:p-6 text-center">
+                <div className="text-2xl mb-2">❤️</div>
+                <p className="font-black text-slate-900 text-sm md:text-base">
+                  En Tus Comercios
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
+            <div className="lg:col-span-8 space-y-5">
+              <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-7">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <h2 className="text-xl md:text-2xl font-black text-slate-950">
+                    Sobre nosotros
+                  </h2>
+
+                  <span
+                    className={`hidden sm:inline-flex px-3 py-1 rounded-full text-xs font-black ${planStyles.badge}`}
+                  >
+                    {getPlanMessage()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+                  <div className="whitespace-pre-line text-slate-700 leading-relaxed text-base">
+                    {business.descripcion ||
+                      "Este comercio todavía no cargó una descripción."}
+                  </div>
+
+                  <div
+                    onClick={() => openImage(index)}
+                    className="rounded-2xl overflow-hidden bg-slate-100 h-56 md:h-64 cursor-zoom-in shadow-inner"
+                  >
+                    <img
+                      src={currentImage}
+                      alt={business.negocio}
+                      onError={(e) => {
+                        e.target.src =
+                          "https://placehold.co/800x500?text=Sin+Imagen";
+                      }}
+                      className="w-full h-full object-cover hover:scale-105 transition duration-500"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {hasSocials && (
-                <div className="mt-6 bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                  <h3 className="font-bold mb-3">Redes y contacto</h3>
+              {visibleGallery.length > 0 && (
+                <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-7">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-950">
+                      Galería
+                    </h2>
 
-                  <div className="flex flex-wrap gap-2">
-                    {business.facebook && (
-                      <a
-                        href={formatUrl(business.facebook)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition"
-                      >
-                        Facebook
-                      </a>
-                    )}
+                    <span className="text-sm font-bold text-slate-400">
+                      {visibleGallery.length} fotos
+                    </span>
+                  </div>
 
-                    {business.instagram && (
-                      <a
-                        href={formatUrl(business.instagram)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-pink-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-pink-700 transition"
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {visibleGallery.map((img, i) => (
+                      <button
+                        key={i}
+                        onClick={() => openImage(i)}
+                        className={`relative overflow-hidden rounded-2xl bg-slate-100 aspect-square shadow-sm border-2 ${
+                          i === index ? "border-blue-600" : "border-transparent"
+                        }`}
                       >
-                        Instagram
-                      </a>
-                    )}
-
-                    {business.tiktok && (
-                      <a
-                        href={formatUrl(business.tiktok)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-black text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-800 transition"
-                      >
-                        TikTok
-                      </a>
-                    )}
-
-                    {business.email && (
-                      <a
-                        href={`mailto:${business.email}`}
-                        className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition"
-                      >
-                        Email
-                      </a>
-                    )}
-
-                    {business.web && (
-                      <a
-                        href={formatUrl(business.web)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition"
-                      >
-                        Web
-                      </a>
-                    )}
+                        <img
+                          src={img}
+                          alt=""
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                          className="w-full h-full object-cover hover:scale-110 transition duration-500"
+                        />
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="mt-6 bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                <p className="text-sm text-blue-800 font-medium">
+            <aside className="lg:col-span-4 space-y-5">
+              <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-6">
+                <h2 className="text-xl font-black text-slate-950 mb-4">
+                  Contacto y redes
+                </h2>
+
+                <div className="space-y-3">
+                  {whatsappNumber && (
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={handleWhatsappClick}
+                      className="flex items-center justify-between gap-3 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-2xl font-black hover:bg-green-100 transition"
+                    >
+                      <span>💬 Contactar por WhatsApp</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {business.facebook && (
+                    <a
+                      href={formatUrl(business.facebook)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-2xl font-bold hover:bg-blue-100 transition"
+                    >
+                      <span>Facebook</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {business.instagram && (
+                    <a
+                      href={formatUrl(business.instagram)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 bg-pink-50 border border-pink-200 text-pink-700 px-4 py-3 rounded-2xl font-bold hover:bg-pink-100 transition"
+                    >
+                      <span>Instagram</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {business.tiktok && (
+                    <a
+                      href={formatUrl(business.tiktok)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 text-slate-800 px-4 py-3 rounded-2xl font-bold hover:bg-slate-100 transition"
+                    >
+                      <span>TikTok</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {business.email && (
+                    <a
+                      href={`mailto:${business.email}`}
+                      className="flex items-center justify-between gap-3 bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-2xl font-bold hover:bg-orange-100 transition"
+                    >
+                      <span>Email</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {business.web && (
+                    <a
+                      href={formatUrl(business.web)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 text-slate-800 px-4 py-3 rounded-2xl font-bold hover:bg-slate-100 transition"
+                    >
+                      <span>Sitio web</span>
+                      <span>›</span>
+                    </a>
+                  )}
+
+                  {!hasSocials && !whatsappNumber && (
+                    <p className="text-slate-500 text-sm">
+                      Este comercio todavía no cargó medios de contacto.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-3xl shadow border p-5 md:p-6 ${planStyles.cardAccent}`}
+              >
+                <h2 className="text-xl font-black text-slate-950 mb-3">
+                  Tus Comercios
+                </h2>
+
+                <p className="text-sm text-slate-700 leading-relaxed font-medium">
                   🚀 {getPlanMessage()}
                 </p>
               </div>
 
-              {whatsappNumber ? (
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={handleWhatsappClick}
-                  className="hidden md:block mt-6 bg-green-600 text-white py-3 rounded-xl text-center font-bold text-lg hover:bg-green-700 transition"
-                >
-                  💬 Contactar por WhatsApp
-                </a>
-              ) : (
-                <div className="mt-6 bg-gray-200 text-gray-600 py-3 rounded-xl text-center font-bold text-lg">
-                  WhatsApp no disponible
+              <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-6">
+                <h2 className="text-xl font-black text-slate-950 mb-4">
+                  Horarios de atención
+                </h2>
+
+                <div className="space-y-2 text-sm">
+                  {DIAS_ORDEN.map((dia) => {
+                    const horario = business.horarios?.[dia] || "Cerrado";
+                    const cerrado = horario === "Cerrado";
+
+                    return (
+                      <div
+                        key={dia}
+                        className="flex justify-between gap-4 border-b border-slate-100 pb-2 last:border-b-0"
+                      >
+                        <span className="capitalize font-bold text-slate-700">
+                          {dia}
+                        </span>
+
+                        <span
+                          className={`text-right font-bold ${
+                            cerrado ? "text-red-500" : "text-slate-600"
+                          }`}
+                        >
+                          {formatHorario(horario)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {business.ubicacion && (
+                <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-6">
+                  <h2 className="text-xl font-black text-slate-950 mb-4">
+                    Ubicación
+                  </h2>
+
+                  <a
+                    href={formatUrl(business.ubicacion)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block w-full text-center bg-slate-900 text-white px-4 py-3 rounded-2xl font-black hover:bg-slate-800 transition"
+                  >
+                    📍 Ver en Google Maps
+                  </a>
                 </div>
               )}
+            </aside>
+          </section>
 
-              <button
-                onClick={shareBusiness}
-                className="mt-3 bg-slate-100 text-slate-700 py-3 rounded-xl text-center font-bold text-lg hover:bg-slate-200 transition"
-              >
-                ↗ Compartir
-              </button>
-            </div>
-          </div>
+          <footer
+            className={`mt-6 rounded-3xl px-5 py-5 md:px-7 flex flex-col md:flex-row items-center justify-between gap-3 text-sm ${planStyles.footer}`}
+          >
+            <p>© 2025 Tus Comercios. Todos los derechos reservados.</p>
 
-          {images.length > 1 && (
-            <div className="flex gap-2 mt-4 overflow-x-auto">
-              {images.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
-                  alt=""
-                  onClick={() => openImage(i)}
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
-                  className={`w-24 h-24 object-cover rounded cursor-pointer border-2 ${
-                    i === index ? "border-blue-600" : "border-transparent"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-xl font-bold mb-4">Horarios</h2>
-
-          <div className="space-y-2 text-sm">
-            {DIAS_ORDEN.map((dia) => {
-              const horario = business.horarios?.[dia] || "Cerrado";
-
-              return (
-                <div key={dia} className="flex justify-between gap-4 border-b pb-1">
-                  <span className="capitalize font-medium">{dia}</span>
-
-                  <span className="text-gray-600 text-right">
-                    {formatHorario(horario)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+            <p className="font-bold">
+              Creado con ❤️ por Tus Comercios
+            </p>
+          </footer>
+        </main>
       </div>
 
       {whatsappNumber && (
