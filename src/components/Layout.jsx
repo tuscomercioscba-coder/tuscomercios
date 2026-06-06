@@ -5,6 +5,8 @@ import { supabase } from "../supabase";
 export default function Layout({ children, fullWidth = false }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
     getUser();
@@ -15,7 +17,27 @@ export default function Layout({ children, fullWidth = false }) {
       setUser(session?.user || null);
     });
 
-    return () => subscription.unsubscribe();
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setShowInstall(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone;
+
+    if (isIos && !isStandalone) {
+      setShowInstall(true);
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
   }, []);
 
   async function getUser() {
@@ -35,6 +57,29 @@ export default function Layout({ children, fullWidth = false }) {
     ]);
   }
 
+  async function handleInstallApp() {
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+
+    if (installPrompt) {
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      setInstallPrompt(null);
+      setShowInstall(false);
+      return;
+    }
+
+    if (isIos) {
+      alert(
+        "Para instalar la app en iPhone: tocá el botón Compartir y después 'Agregar a pantalla de inicio'."
+      );
+      return;
+    }
+
+    alert(
+      "Para instalar la app: abrí el menú del navegador y tocá 'Instalar app' o 'Agregar a pantalla principal'."
+    );
+  }
+
   async function handleLogout() {
     await registerEvent("logout");
     await supabase.auth.signOut({ scope: "global" });
@@ -46,6 +91,15 @@ export default function Layout({ children, fullWidth = false }) {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+      {showInstall && (
+        <button
+          onClick={handleInstallApp}
+          className="fixed left-3 top-3 z-50 bg-blue-600 text-white px-3 py-2 rounded-full text-xs md:text-sm font-black shadow-xl hover:bg-blue-700 active:scale-95 transition"
+        >
+          📲 Descargar app
+        </button>
+      )}
+
       <div className="bg-white shadow flex flex-wrap justify-between items-center gap-3 px-4 md:px-6 py-4">
         <img
           src="/logo.png"
