@@ -29,7 +29,7 @@ export default function PlansPage() {
     try {
       setLoadingPlan(plan);
 
-      const response = await fetch("/.netlify/functions/create-subscription", {
+      const response = await fetch("/api/create-subscription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

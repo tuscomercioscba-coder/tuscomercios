@@ -179,7 +179,7 @@ export default function Dashboard() {
   async function cancelMercadoPagoSubscription(mpSubscriptionId) {
     if (!mpSubscriptionId) return;
 
-    const response = await fetch("/.netlify/functions/cancel-subscription", {
+    const response = await fetch("/api/cancel-subscription", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
