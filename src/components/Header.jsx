@@ -111,6 +111,10 @@ export default function Header() {
     }
   };
 
+  function goToQuickRegister() {
+    navigate("/register-business");
+  }
+
   return (
     <header className="bg-white px-4 py-8 shadow-sm">
       <div className="w-full flex justify-between items-center mb-6 gap-3">
@@ -170,14 +174,12 @@ export default function Header() {
           Argentina
         </p>
 
-        {!user && (
-          <button
-            onClick={() => navigate("/login")}
-            className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black text-lg mb-8 hover:bg-green-700 transition shadow-xl"
-          >
-            Publicar mi negocio GRATIS
-          </button>
-        )}
+        <button
+          onClick={goToQuickRegister}
+          className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black text-lg mb-8 hover:bg-green-700 transition shadow-xl"
+        >
+          Publicar mi negocio GRATIS
+        </button>
 
         <div className="flex flex-col md:flex-row items-center gap-3 w-full max-w-3xl relative">
           <div className="flex items-center w-full border rounded-2xl px-4 py-4 bg-white shadow-sm relative">
@@ -198,7 +200,7 @@ export default function Header() {
                   <div
                     key={s.id}
                     onClick={() => {
-                      navigate(`/negocio/${s.id}`);
+                      navigate(`/${s.slug || s.id}`);
                       setSuggestions([]);
                     }}
                     className="p-4 hover:bg-gray-100 cursor-pointer text-left border-b"

@@ -54,7 +54,7 @@ export default function BusinessDirectory() {
       .trim();
   }
 
-    function normalizePlan(plan) {
+  function normalizePlan(plan) {
     const clean = normalizeText(plan || "free");
 
     if (
@@ -92,7 +92,10 @@ export default function BusinessDirectory() {
   }
 
   async function fetchBusinesses() {
-    const { data, error } = await supabase.from("businesses").select("*");
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*")
+      .eq("status", "published");
 
     if (error) {
       console.log(error);
@@ -216,6 +219,7 @@ export default function BusinessDirectory() {
 
   const filtered = useMemo(() => {
     return businesses
+      .filter((b) => (b.status || "published") === "published")
       .filter((b) => {
         if (!search) return true;
 

@@ -61,37 +61,41 @@ export default function PlansPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-16 px-4">
       <div className="max-w-5xl mx-auto text-center mb-14">
-        <h1 className="text-5xl font-black text-slate-800 mb-4">
-          Elegí el plan ideal para tu negocio
+        <div className="inline-flex bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-black text-sm mb-5">
+          🚀 Publicá hoy y completá tu vidriera paso a paso
+        </div>
+
+        <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4">
+          Elegí cómo querés mostrar tu negocio
         </h1>
 
         <p className="text-slate-500 text-lg max-w-2xl mx-auto">
-          Conseguí más clientes, más visitas y más ventas mostrando tu negocio
-          a miles de personas en tu ciudad.
+          Empezá gratis o convertí tu vidriera en una mini página web profesional dentro de Tus Comercios.
         </p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         <div className="bg-white rounded-3xl border shadow-sm p-8 flex flex-col">
           <h2 className="text-2xl font-black mb-2">Gratis</h2>
-          <p className="text-gray-500 mb-6">Ideal para comenzar</p>
+          <p className="text-gray-500 mb-6">Ideal para empezar</p>
 
           <div className="mb-6">
             <span className="text-5xl font-black">$0</span>
             <span className="text-gray-500">/mes</span>
           </div>
 
-          <ul className="space-y-3 text-sm">
+          <ul className="space-y-3 text-sm text-left">
             <li>✔ Hasta 2 fotos</li>
-            <li>✔ WhatsApp</li>
-            <li>✔ Ciudad y provincia</li>
+            <li>✔ WhatsApp directo</li>
+            <li>✔ Provincia y localidad automática</li>
             <li>✔ Descripción básica</li>
+            <li>✔ Horarios de atención</li>
             <li>✔ Aparece en búsquedas</li>
           </ul>
 
-          <div className="mt-8 bg-orange-50 border border-orange-200 p-4 rounded-2xl">
-            <p className="text-sm text-orange-700 font-medium">
-              ⚡ Los negocios Premium reciben hasta 12x más visitas y clics.
+          <div className="mt-8 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+            <p className="text-sm text-slate-700 font-medium">
+              Empezá gratis y completá tu vidriera cuando quieras.
             </p>
           </div>
 
@@ -99,7 +103,7 @@ export default function PlansPage() {
             onClick={() => selectPlan("free")}
             className="mt-8 bg-slate-800 text-white py-3 rounded-2xl font-bold hover:bg-black transition"
           >
-            Empezar Gratis
+            Publicar gratis
           </button>
         </div>
 
@@ -109,25 +113,25 @@ export default function PlansPage() {
           </div>
 
           <h2 className="text-2xl font-black mb-2">Estándar</h2>
-          <p className="text-gray-500 mb-6">Más visibilidad para crecer</p>
+          <p className="text-gray-500 mb-6">Más presencia y mejor imagen</p>
 
           <div className="mb-6">
             <span className="text-5xl font-black text-blue-600">$8.000</span>
             <span className="text-gray-500">/mes</span>
           </div>
 
-          <ul className="space-y-3 text-sm">
+          <ul className="space-y-3 text-sm text-left">
+            <li>✔ Todo lo del plan Gratis</li>
             <li>✔ Hasta 6 fotos</li>
             <li>✔ Redes sociales</li>
-            <li>✔ Más prioridad en búsquedas</li>
-            <li>✔ WhatsApp directo</li>
-            <li>✔ Estadísticas reales</li>
-            <li>✔ Más alcance regional</li>
+            <li>✔ Email de contacto</li>
+            <li>✔ Mayor prioridad que Gratis</li>
+            <li>✔ Vidriera más completa</li>
           </ul>
 
           <div className="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-2xl">
             <p className="text-sm text-blue-700 font-medium">
-              🚀 Los negocios Premium reciben hasta 4x más clics que Estándar.
+              Ideal para negocios que quieren verse más profesionales y recibir más consultas.
             </p>
           </div>
 
@@ -138,16 +142,20 @@ export default function PlansPage() {
           >
             {loadingPlan === "standard"
               ? "Preparando pago..."
-              : "Contratar Estándar"}
+              : "Elegir Estándar"}
           </button>
         </div>
 
-        <div className="bg-gradient-to-b from-purple-600 to-indigo-700 rounded-3xl shadow-2xl p-8 flex flex-col text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="bg-gradient-to-b from-slate-950 to-purple-900 rounded-3xl shadow-2xl p-8 flex flex-col text-white relative overflow-hidden border-2 border-amber-300">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 px-5 py-2 rounded-full text-sm font-black shadow-lg">
+            PREMIUM RECOMENDADO
+          </div>
 
-          <h2 className="text-2xl font-black mb-2">Premium</h2>
+          <div className="absolute top-0 right-0 w-40 h-40 bg-amber-300/20 rounded-full blur-3xl"></div>
+
+          <h2 className="text-2xl font-black mb-2 mt-2">Premium</h2>
           <p className="text-purple-100 mb-6">
-            Máxima exposición y resultados
+            Tu negocio como mini web profesional
           </p>
 
           <div className="mb-6">
@@ -155,33 +163,44 @@ export default function PlansPage() {
             <span className="text-purple-200">/mes</span>
           </div>
 
-          <ul className="space-y-3 text-sm">
+          <ul className="space-y-3 text-sm text-left">
+            <li>✔ Todo lo del plan Estándar</li>
             <li>✔ Hasta 10 fotos</li>
             <li>✔ Video del negocio</li>
-            <li>✔ Google Maps</li>
+            <li>✔ Mapa visible integrado</li>
+            <li>✔ Botón “Cómo llegar”</li>
             <li>✔ Sitio web</li>
+            <li>✔ Servicios destacados</li>
+            <li>✔ Portada premium</li>
             <li>✔ Máxima prioridad</li>
-            <li>✔ Más visitas y clics</li>
-            <li>✔ Estadísticas avanzadas</li>
-            <li>✔ Más alcance regional</li>
           </ul>
 
           <div className="mt-8 bg-white/10 border border-white/20 p-4 rounded-2xl">
             <p className="text-sm font-medium">
-              👑 El plan Premium aparece primero y recibe la mayor visibilidad.
+              👑 El plan Premium transforma tu vidriera en una presentación profesional para vender más confianza.
             </p>
           </div>
 
           <button
             onClick={() => selectPlan("premium")}
             disabled={loadingPlan === "premium"}
-            className="mt-8 bg-white text-purple-700 py-3 rounded-2xl font-black text-center hover:bg-slate-100 transition"
+            className="mt-8 bg-amber-400 text-slate-950 py-3 rounded-2xl font-black text-center hover:bg-amber-300 transition"
           >
             {loadingPlan === "premium"
               ? "Preparando pago..."
-              : "Contratar Premium"}
+              : "Quiero Premium"}
           </button>
         </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto mt-12 bg-white border rounded-3xl shadow p-6 text-center">
+        <h2 className="text-2xl font-black text-slate-900 mb-2">
+          ¿No sabés cuál elegir?
+        </h2>
+
+        <p className="text-slate-600">
+          Podés empezar gratis, completar tu vidriera y mejorar de plan cuando quieras.
+        </p>
       </div>
     </div>
   );

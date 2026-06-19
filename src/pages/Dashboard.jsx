@@ -221,6 +221,22 @@ export default function Dashboard() {
 
   const canCreateBanner = isAdmin || paidBusinesses.length > 0;
 
+  const publishedBusinesses = businesses.filter(
+    (b) => (b.status || "published") === "published"
+  );
+
+  const draftBusinesses = businesses.filter(
+    (b) => (b.status || "published") === "draft"
+  );
+
+  const allPublishedBusinesses = allBusinesses.filter(
+    (b) => (b.status || "published") === "published"
+  );
+
+  const allDraftBusinesses = allBusinesses.filter(
+    (b) => (b.status || "published") === "draft"
+  );
+
   function getComparison(business) {
     const sameCategory = allBusinesses.filter(
       (x) => x.id !== business.id && x.rubro === business.rubro
@@ -463,8 +479,8 @@ export default function Dashboard() {
             <>
               <StatsGrid
                 items={[
-                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
-                  ["Mis banners", banners.length, "bg-pink-50", "text-pink-700"],
+                  ["Publicadas", publishedBusinesses.length, "bg-green-50", "text-green-700"],
+                  ["Borradores", draftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
                   ["Vistas", totalViews, "bg-blue-50", "text-blue-700"],
                   ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
                 ]}
@@ -497,9 +513,9 @@ export default function Dashboard() {
               <StatsGrid
                 items={[
                   ["Total negocios", allBusinesses.length, "bg-white", "text-slate-800"],
+                  ["Publicados", allPublishedBusinesses.length, "bg-green-50", "text-green-700"],
+                  ["Borradores", allDraftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
                   ["Usuarios", profiles.length, "bg-blue-50", "text-blue-700"],
-                  ["Suscripciones activas", activeSubscriptions.length, "bg-green-50", "text-green-700"],
-                  ["Pendientes", pendingSubscriptions.length, "bg-orange-50", "text-orange-700"],
                   ["Ingresos reales", money(realMonthlyIncome), "bg-purple-50", "text-purple-700"],
                   ["Banners", banners.length, "bg-pink-50", "text-pink-700"],
                   ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
@@ -551,8 +567,8 @@ export default function Dashboard() {
             <>
               <StatsGrid
                 items={[
-                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
-                  ["Mis banners", banners.filter((b) => b.user_id === myUserId).length, "bg-pink-50", "text-pink-700"],
+                  ["Mis publicados", publishedBusinesses.length, "bg-green-50", "text-green-700"],
+                  ["Mis borradores", draftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
                   [
                     "Mis vistas",
                     businesses.reduce((total, b) => total + (viewsByBusiness[b.id] || 0), 0),
@@ -599,6 +615,8 @@ export default function Dashboard() {
                     <th className="p-3">Ciudad</th>
                     <th className="p-3">Rubro</th>
                     <th className="p-3">Plan</th>
+                    <th className="p-3">Estado</th>
+                    <th className="p-3">Progreso</th>
                     <th className="p-3">Clicks</th>
                     <th className="p-3">Acciones</th>
                   </tr>
@@ -621,6 +639,18 @@ export default function Dashboard() {
                           <option value="premium">premium</option>
                         </select>
                       </td>
+                      <td className="p-3">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            (b.status || "published") === "published"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {(b.status || "published") === "published" ? "Publicado" : "Borrador"}
+                        </span>
+                      </td>
+                      <td className="p-3">{b.completion || 0}%</td>
                       <td className="p-3">{clicksByBusiness[b.id] || 0}</td>
                       <td className="p-3 flex gap-2 flex-wrap">
                         <button
@@ -880,7 +910,7 @@ function UserBanners({
                 </button>
 
                 <button onClick={() => navigate(`/editar-banner/${banner.id}`)} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm">
-                  Editar
+                  {(b.status || "published") === "published" ? "Editar" : "Continuar"}
                 </button>
 
                 <button onClick={() => toggleBannerActive(banner.id, banner.active)} className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm">
@@ -1039,7 +1069,13 @@ function BusinessCards({
 
         return (
           <div key={b.id} className="bg-white border rounded-3xl shadow hover:shadow-2xl transition overflow-hidden">
-            {b.image && <img src={b.image} className="w-full h-52 object-cover" alt={b.negocio} />}
+            {b.image ? (
+              <img src={b.image} className="w-full h-52 object-cover" alt={b.negocio} />
+            ) : (
+              <div className="w-full h-52 bg-slate-100 flex items-center justify-center text-slate-400 font-bold">
+                Sin foto principal
+              </div>
+            )}
 
             <div className="p-5">
               <div className="flex justify-between items-start gap-3">
@@ -1048,19 +1084,53 @@ function BusinessCards({
                   <p className="text-gray-500 text-sm">📍 {b.ciudad}</p>
                 </div>
 
-                <span
-                  className={`
-                    text-xs px-3 py-1 rounded-full font-semibold
-                    ${b.plan === "premium" ? "bg-purple-600 text-white" : ""}
-                    ${b.plan === "standard" ? "bg-blue-100 text-blue-700" : ""}
-                    ${b.plan === "free" ? "bg-gray-100 text-gray-600" : ""}
-                  `}
-                >
-                  {b.plan || "free"}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span
+                    className={`
+                      text-xs px-3 py-1 rounded-full font-semibold
+                      ${b.plan === "premium" ? "bg-purple-600 text-white" : ""}
+                      ${b.plan === "standard" ? "bg-blue-100 text-blue-700" : ""}
+                      ${b.plan === "free" ? "bg-gray-100 text-gray-600" : ""}
+                    `}
+                  >
+                    {b.plan || "free"}
+                  </span>
+
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full font-bold ${
+                      (b.status || "published") === "published"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {(b.status || "published") === "published" ? "Publicada" : "Borrador"}
+                  </span>
+                </div>
               </div>
 
-              <p className="text-sm mt-3 line-clamp-2 text-gray-600">{b.descripcion}</p>
+              <p className="text-sm mt-3 line-clamp-2 text-gray-600">
+                {b.descripcion || "Vidriera pendiente de completar."}
+              </p>
+
+              {(b.status || "published") === "draft" && (
+                <div className="mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-2xl">
+                  <div className="flex justify-between text-sm font-black text-yellow-800 mb-2">
+                    <span>Vidriera en borrador</span>
+                    <span>{b.completion || 0}%</span>
+                  </div>
+
+                  <div className="w-full h-3 bg-white rounded-full overflow-hidden mb-3">
+                    <div
+                      className="h-full bg-yellow-500"
+                      style={{ width: `${b.completion || 0}%` }}
+                    />
+                  </div>
+
+                  <p className="text-sm text-yellow-800">
+                    No aparece en la web hasta completar al menos el 70%.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-3 mt-5">
                 <div className="bg-blue-50 p-3 rounded-2xl text-center">
@@ -1120,7 +1190,7 @@ function BusinessCards({
                   }}
                   className="flex-1 bg-gray-200 py-3 rounded-xl text-sm hover:bg-gray-300"
                 >
-                  Ver
+                  {(b.status || "published") === "published" ? "Ver" : "Vista previa"}
                 </button>
 
                 <button

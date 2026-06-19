@@ -20,6 +20,8 @@ export default function BusinessView() {
   const [business, setBusiness] = useState(null);
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [canPreviewDraft, setCanPreviewDraft] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
     getBusiness();
@@ -54,6 +56,40 @@ export default function BusinessView() {
     return `https://${clean}`;
   }
 
+  function getMapsUrl() {
+    if (business?.lat && business?.lng) {
+      return `https://www.google.com/maps?q=${business.lat},${business.lng}`;
+    }
+
+    const query = encodeURIComponent(
+      `${business?.direccion || ""} ${business?.ciudad || ""} ${business?.provincia || ""}`
+    );
+
+    return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  }
+
+  function getEmbedMapUrl() {
+    if (business?.lat && business?.lng) {
+      return `https://maps.google.com/maps?q=${business.lat},${business.lng}&z=16&output=embed`;
+    }
+
+    const query = encodeURIComponent(
+      `${business?.direccion || ""} ${business?.ciudad || ""} ${business?.provincia || ""}`
+    );
+
+    return `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
+  }
+
+  function getServiciosDestacados() {
+    if (!business?.servicios) return [];
+
+    return business.servicios
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+  }
+
   async function registerView(businessId) {
     if (!businessId) return;
 
@@ -85,6 +121,8 @@ export default function BusinessView() {
   }
 
   async function getBusiness() {
+    setCheckingAccess(true);
+
     const { data, error } = await supabase
       .from("businesses")
       .select("*")
@@ -93,14 +131,37 @@ export default function BusinessView() {
 
     if (error) {
       console.error(error);
+      setCheckingAccess(false);
       return;
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let isAdmin = false;
+
+    if (user?.id) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      isAdmin = profile?.role === "admin";
+    }
+
+    const isOwner = Boolean(user?.id && data?.user_id && user.id === data.user_id);
+    const canSeeDraft = isOwner || isAdmin;
+
+    setCanPreviewDraft(canSeeDraft);
     setBusiness(data);
 
-    if (data?.id) {
+    if (data?.id && (data.status || "published") === "published") {
       await registerView(data.id);
     }
+
+    setCheckingAccess(false);
   }
 
   const isOpenNow = () => {
@@ -147,11 +208,48 @@ export default function BusinessView() {
     }
   };
 
-  if (!business) {
+  if (!business || checkingAccess) {
     return (
       <Layout fullWidth>
         <div className="min-h-[50vh] flex items-center justify-center">
           <p className="text-center text-slate-500">Cargando vidriera...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const isDraft = (business.status || "published") === "draft";
+
+  if (isDraft && !canPreviewDraft) {
+    return (
+      <Layout fullWidth>
+        <Helmet>
+          <title>Vidriera no publicada | Tus Comercios</title>
+          <meta
+            name="description"
+            content="Esta vidriera todavía no está publicada en Tus Comercios."
+          />
+        </Helmet>
+
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+          <div className="bg-white rounded-3xl shadow-xl p-8 max-w-lg text-center border">
+            <div className="text-5xl mb-4">📝</div>
+
+            <h1 className="text-3xl font-black text-slate-900 mb-3">
+              Esta vidriera todavía no está publicada
+            </h1>
+
+            <p className="text-slate-600 mb-6">
+              El comercio está completando la información para que la vidriera se vea profesional.
+            </p>
+
+            <a
+              href="/"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-2xl font-black hover:bg-blue-700 transition"
+            >
+              Volver a Tus Comercios
+            </a>
+          </div>
         </div>
       </Layout>
     );
@@ -249,6 +347,7 @@ export default function BusinessView() {
   };
 
   async function handleWhatsappClick() {
+    if ((business.status || "published") !== "published") return;
     await registerWhatsappClick(business.id);
   }
 
@@ -293,6 +392,8 @@ export default function BusinessView() {
   }
 
   const visibleGallery = images.slice(0, isPremium ? 10 : isStandard ? 8 : 4);
+  const serviciosDestacados = getServiciosDestacados();
+  const hasPremiumMap = isPremium && (business.lat || business.lng || business.direccion);
 
   return (
     <Layout fullWidth>
@@ -332,6 +433,12 @@ export default function BusinessView() {
       </Helmet>
 
       <div className="bg-slate-50 min-h-screen pb-28 md:pb-8">
+        {isDraft && canPreviewDraft && (
+          <div className="bg-yellow-400 text-yellow-950 px-4 py-3 text-center font-black">
+            📝 Vista previa: esta vidriera está en borrador y todavía no aparece públicamente.
+          </div>
+        )}
+
         <section className="relative overflow-hidden bg-slate-900">
           <div
             className="absolute inset-0 bg-cover bg-center scale-105"
@@ -344,12 +451,12 @@ export default function BusinessView() {
             className={`absolute inset-0 bg-gradient-to-r ${planStyles.heroOverlay}`}
           />
 
-          <div className="relative max-w-7xl mx-auto px-4 py-8 sm:py-10 md:py-16">
+          <div className="relative max-w-7xl mx-auto px-4 py-14 sm:py-20 md:py-28">
             <div className="max-w-5xl">
               <div className="flex flex-col sm:flex-row sm:items-center gap-5 md:gap-8">
                 <div
                   onClick={() => openImage(index)}
-                  className="w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full bg-white shadow-2xl border-4 border-white overflow-hidden shrink-0 cursor-zoom-in"
+                  className="w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full bg-white shadow-2xl border-4 border-white overflow-hidden shrink-0 cursor-zoom-in"
                 >
                   <img
                     src={currentImage}
@@ -526,6 +633,34 @@ export default function BusinessView() {
                 </div>
               </div>
 
+              {isPremium && serviciosDestacados.length > 0 && (
+                <div className="bg-white rounded-3xl shadow border border-amber-100 p-5 md:p-7">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-950">
+                      Servicios destacados
+                    </h2>
+
+                    <span className="hidden sm:inline-flex bg-amber-400 text-slate-950 px-3 py-1 rounded-full text-xs font-black">
+                      Premium
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {serviciosDestacados.map((servicio) => (
+                      <div
+                        key={servicio}
+                        className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3"
+                      >
+                        <span className="text-xl">⭐</span>
+                        <span className="font-bold text-slate-800">
+                          {servicio}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {visibleGallery.length > 0 && (
                 <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-7">
                   <div className="flex items-center justify-between mb-4">
@@ -569,7 +704,7 @@ export default function BusinessView() {
                 </h2>
 
                 <div className="space-y-3">
-                  {whatsappNumber && (
+                  {whatsappNumber && (business.status || "published") === "published" && (
                     <a
                       href={whatsappLink}
                       target="_blank"
@@ -652,11 +787,11 @@ export default function BusinessView() {
                 className={`rounded-3xl shadow border p-5 md:p-6 ${planStyles.cardAccent}`}
               >
                 <h2 className="text-xl font-black text-slate-950 mb-3">
-                  Tus Comercios
+                  👑 Negocio Destacado
                 </h2>
 
                 <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                  🚀 {getPlanMessage()}
+                  {getPlanMessage()}
                 </p>
               </div>
 
@@ -692,7 +827,46 @@ export default function BusinessView() {
                 </div>
               </div>
 
-              {business.ubicacion && (
+              {hasPremiumMap && (
+                <div className="bg-white rounded-3xl shadow border border-amber-100 overflow-hidden">
+                  <div className="p-5 md:p-6">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <h2 className="text-xl font-black text-slate-950">
+                        Ubicación Premium
+                      </h2>
+
+                      <span className="bg-amber-400 text-slate-950 px-3 py-1 rounded-full text-xs font-black">
+                        Mapa visible
+                      </span>
+                    </div>
+
+                    {business.direccion && (
+                      <p className="text-sm text-slate-600 font-bold mb-4">
+                        📍 {business.direccion}, {business.ciudad}, {business.provincia}
+                      </p>
+                    )}
+
+                    <a
+                      href={getMapsUrl()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block w-full text-center bg-slate-950 text-white px-4 py-3 rounded-2xl font-black hover:bg-slate-800 transition mb-4"
+                    >
+                      📍 Cómo llegar
+                    </a>
+                  </div>
+
+                  <iframe
+                    src={getEmbedMapUrl()}
+                    title={`Mapa de ${business.negocio}`}
+                    className="w-full h-72 border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              )}
+
+              {!isPremium && business.ubicacion && (
                 <div className="bg-white rounded-3xl shadow border border-slate-100 p-5 md:p-6">
                   <h2 className="text-xl font-black text-slate-950 mb-4">
                     Ubicación

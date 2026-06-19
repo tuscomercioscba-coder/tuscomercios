@@ -27,7 +27,8 @@ export default function CategoryPage() {
   const fetchData = async () => {
     const { data, error } = await supabase
       .from("businesses")
-      .select("*");
+      .select("*")
+      .eq("status", "published");
 
     if (error) {
       console.log(error);
@@ -38,6 +39,7 @@ export default function CategoryPage() {
     const ciudadSearch = normalizeText(ciudad || "");
 
     const filtered = (data || [])
+      .filter((b) => (b.status || "published") === "published")
       .filter((b) => {
         const text = normalizeText(`
           ${b.negocio || ""}

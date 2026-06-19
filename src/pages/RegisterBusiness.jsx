@@ -1,4 +1,4 @@
-import { useSearchParams, useParams } from "react-router-dom";
+import { useSearchParams, useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
@@ -19,6 +19,7 @@ const PLAN_LIMITS = {
     social: false,
     web: false,
     video: false,
+    services: false,
   },
   standard: {
     maxImages: 6,
@@ -26,6 +27,7 @@ const PLAN_LIMITS = {
     social: true,
     web: false,
     video: false,
+    services: false,
   },
   premium: {
     maxImages: 10,
@@ -33,6 +35,7 @@ const PLAN_LIMITS = {
     social: true,
     web: true,
     video: true,
+    services: true,
   },
 };
 
@@ -60,15 +63,61 @@ const emptyHorarios = () =>
     return acc;
   }, {});
 
+function calculateCompletion(data, horariosData) {
+  let score = 0;
+
+  if (data.negocio && data.rubro && data.whatsapp) score += 15;
+  if (data.image || (Array.isArray(data.images) && data.images.length > 0)) score += 25;
+  if ((data.descripcion || "").trim().length >= 40) score += 20;
+  if (data.ciudad && data.provincia && data.direccion) score += 20;
+
+  const hasHorario = DIAS_ORDEN.some((dia) => {
+    const h = horariosData?.[dia];
+    if (!h) return false;
+    return (h.open && h.close) || (h.open2 && h.close2);
+  });
+
+  if (hasHorario) score += 20;
+
+  return Math.min(score, 100);
+}
+
+
+function LockedPlanField({ title, requiredPlan, description, onUpgrade }) {
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-black text-slate-800">🔒 {title}</p>
+          <p className="text-sm text-slate-500 mt-1">{description}</p>
+          <p className="text-xs text-blue-700 font-bold mt-2">
+            Disponible en plan {requiredPlan}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onUpgrade}
+          className="bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-blue-700 transition"
+        >
+          Ver planes
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function RegisterBusiness() {
   const [searchParams] = useSearchParams();
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const planParam = searchParams.get("plan");
   const isAdmin = searchParams.get("admin") === "true";
 
   const [userPlan, setUserPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
+  const [quickLoading, setQuickLoading] = useState(false);
 
   const [form, setForm] = useState({
     negocio: "",
@@ -83,12 +132,15 @@ export default function RegisterBusiness() {
     tiktok: "",
     email: "",
     web: "",
+    servicios: "",
     image: "",
     images: [],
     video: "",
     lat: null,
     lng: null,
     plan: planParam || "free",
+    status: "draft",
+    completion: 0,
   });
 
   const activePlan = isAdmin
@@ -196,8 +248,11 @@ export default function RegisterBusiness() {
         rubro: data.rubro || "",
         direccion: data.direccion || "",
         video: data.video || "",
+        servicios: data.servicios || "",
         lat: data.lat || null,
         lng: data.lng || null,
+        status: data.status || "draft",
+        completion: data.completion || 0,
         plan: finalPlan,
       });
 
@@ -243,6 +298,10 @@ export default function RegisterBusiness() {
     }
   }
 
+  function goToPlans() {
+    navigate("/planes");
+  }
+
   function handleChange(e) {
     const { name, value } = e.target;
 
@@ -265,6 +324,25 @@ export default function RegisterBusiness() {
       },
     }));
   };
+
+  function applyMondayToWeekdays() {
+    const monday = horarios.lunes;
+
+    if (!monday?.open && !monday?.close && !monday?.open2 && !monday?.close2) {
+      alert("Primero cargá el horario del lunes.");
+      return;
+    }
+
+    setHorarios((prev) => {
+      const updated = { ...prev };
+
+      ["martes", "miercoles", "jueves", "viernes"].forEach((day) => {
+        updated[day] = { ...monday };
+      });
+
+      return updated;
+    });
+  }
 
   const handleImages = (files) => {
     const arr = Array.from(files);
@@ -347,6 +425,63 @@ export default function RegisterBusiness() {
     return publicData.publicUrl;
   };
 
+  async function handleQuickSubmit() {
+    try {
+      setQuickLoading(true);
+
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!form.negocio || !form.rubro || !form.whatsapp) {
+        alert("Completá nombre del negocio, rubro y WhatsApp.");
+        return;
+      }
+
+      const payload = {
+        negocio: form.negocio,
+        rubro: form.rubro,
+        whatsapp: form.whatsapp,
+        ciudad: "",
+        provincia: "",
+        direccion: "",
+        descripcion: "",
+        image: "",
+        images: [],
+        horarios: {},
+        slug: slugify(`${form.negocio}-${Date.now()}`),
+        plan: activePlan,
+        user_id: userData.user.id,
+        status: "draft",
+        completion: 15,
+      };
+
+      const { data, error } = await supabase
+        .from("businesses")
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error(error);
+        alert(JSON.stringify(error));
+        return;
+      }
+
+      alert("Tu lugar quedó reservado 🙌 Ahora completá la vidriera para publicarla.");
+
+      window.location.href = `/editar/${data.id}`;
+    } catch (error) {
+      console.error(error);
+      alert("Error al reservar el lugar");
+    } finally {
+      setQuickLoading(false);
+    }
+  }
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -418,14 +553,22 @@ export default function RegisterBusiness() {
           ? imagesUrls.slice(0, limits.maxImages)
           : (form.images || []).slice(0, limits.maxImages);
 
+      const dataForCompletion = {
+        ...form,
+        image: principalImage,
+        images: finalImages,
+      };
+
+      const completion = calculateCompletion(dataForCompletion, horarios);
+
       const payload = {
         ...form,
 
-        slug: slugify(`${form.negocio}-${form.ciudad}`),
+        slug: form.slug || slugify(`${form.negocio}-${form.ciudad || Date.now()}`),
 
         plan: activePlan,
 
-        user_id: userData.user.id,
+        user_id: id ? form.user_id || userData.user.id : userData.user.id,
 
         image: principalImage,
 
@@ -440,10 +583,16 @@ export default function RegisterBusiness() {
 
         web: limits.web ? form.web : "",
 
+        servicios: limits.services ? form.servicios : "",
+
         horarios: horariosFinal,
 
         lat: form.lat,
         lng: form.lng,
+
+        completion,
+
+        status: completion >= 70 ? "published" : "draft",
       };
 
       let response;
@@ -463,7 +612,11 @@ export default function RegisterBusiness() {
         return;
       }
 
-      alert("Guardado correctamente 🚀");
+      if (completion >= 70) {
+        alert("Guardado correctamente 🚀 Tu vidriera ya está publicada.");
+      } else {
+        alert(`Guardado como borrador. Completá la vidriera para publicarla. Progreso: ${completion}%`);
+      }
 
       window.location.href = "/dashboard";
     } catch (err) {
@@ -475,6 +628,14 @@ export default function RegisterBusiness() {
   };
 
   const remainingChars = limits.maxDescription - form.descripcion.length;
+  const currentCompletion = calculateCompletion(
+    {
+      ...form,
+      image: form.image || previewImages[0],
+      images: form.images,
+    },
+    horarios
+  );
 
   if (loadingPlan) {
     return (
@@ -486,6 +647,84 @@ export default function RegisterBusiness() {
     );
   }
 
+  if (!id && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-100 p-4 md:p-6 flex items-center justify-center">
+        <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-full max-w-xl">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-3">🚀</div>
+            <h1 className="text-3xl font-black text-slate-900">
+              Reservá tu lugar gratis
+            </h1>
+            <p className="text-slate-500 mt-2">
+              Cargá solo 3 datos y después completás tu vidriera.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <input
+              name="negocio"
+              placeholder="Nombre del negocio"
+              onChange={handleChange}
+              value={form.negocio}
+              className="input"
+            />
+
+            <input
+              name="rubro"
+              placeholder="Rubro (Ej: Panadería, Ferretería, Estética)"
+              onChange={handleChange}
+              value={form.rubro || ""}
+              className="input"
+            />
+
+            <input
+              name="whatsapp"
+              placeholder="WhatsApp"
+              onChange={handleChange}
+              value={form.whatsapp}
+              className="input"
+            />
+
+            <button
+              onClick={handleQuickSubmit}
+              disabled={quickLoading}
+              className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-green-700 transition"
+            >
+              {quickLoading ? "Reservando..." : "🚀 Reservar mi lugar"}
+            </button>
+
+            <p className="text-xs text-center text-slate-500">
+              Tu vidriera no se publica hasta que tenga suficiente información.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const missingItems = [
+    {
+      label: "Foto principal",
+      done: Boolean(form.image || previewImages[0]),
+    },
+    {
+      label: "Descripción de al menos 40 caracteres",
+      done: (form.descripcion || "").trim().length >= 40,
+    },
+    {
+      label: "Ciudad, provincia y dirección",
+      done: Boolean(form.ciudad && form.provincia && form.direccion),
+    },
+    {
+      label: "Horarios",
+      done: DIAS_ORDEN.some((dia) => {
+        const h = horarios[dia];
+        return (h?.open && h?.close) || (h?.open2 && h?.close2);
+      }),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-100 p-6">
       <div className="grid md:grid-cols-2 gap-6 max-w-7xl mx-auto">
@@ -493,6 +732,38 @@ export default function RegisterBusiness() {
           <h1 className="text-2xl font-bold">
             {id ? "Editar negocio" : "Crear negocio"}
           </h1>
+
+          <div className={`border p-4 rounded-xl text-sm ${
+            currentCompletion >= 70
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-yellow-50 border-yellow-200 text-yellow-800"
+          }`}>
+            <div className="flex justify-between gap-3 mb-2">
+              <b>
+                {currentCompletion >= 70
+                  ? "Vidriera lista para publicar"
+                  : "Vidriera en borrador"}
+              </b>
+              <b>{currentCompletion}%</b>
+            </div>
+
+            <div className="w-full h-3 bg-white/80 rounded-full overflow-hidden mb-3">
+              <div
+                className={`h-full ${currentCompletion >= 70 ? "bg-green-600" : "bg-yellow-500"}`}
+                style={{ width: `${currentCompletion}%` }}
+              />
+            </div>
+
+            {currentCompletion < 70 && (
+              <div className="space-y-1">
+                {missingItems.map((item) => (
+                  <p key={item.label}>
+                    {item.done ? "✅" : "⬜"} {item.label}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm">
             Plan actual: <b>{activePlan}</b> · Hasta{" "}
@@ -611,7 +882,7 @@ export default function RegisterBusiness() {
             </p>
           </div>
 
-          {limits.social && (
+          {limits.social ? (
             <div className="bg-gray-50 p-4 rounded-xl space-y-3">
               <h3 className="font-bold">Redes sociales</h3>
 
@@ -647,9 +918,16 @@ export default function RegisterBusiness() {
                 className="input"
               />
             </div>
+          ) : (
+            <LockedPlanField
+              title="Redes sociales y email"
+              requiredPlan="Estándar"
+              description="Agregá Facebook, Instagram, TikTok y email para que te contacten por más canales."
+              onUpgrade={goToPlans}
+            />
           )}
 
-          {limits.web && (
+          {limits.web ? (
             <input
               name="web"
               placeholder="Sitio web"
@@ -657,10 +935,54 @@ export default function RegisterBusiness() {
               value={form.web || ""}
               className="input"
             />
+          ) : (
+            <LockedPlanField
+              title="Sitio web"
+              requiredPlan="Premium"
+              description="Mostrá tu web oficial dentro de la vidriera y sumá más confianza."
+              onUpgrade={goToPlans}
+            />
+          )}
+
+          {limits.services ? (
+            <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl">
+              <h3 className="font-bold text-purple-900 mb-2">
+                Servicios destacados Premium
+              </h3>
+
+              <textarea
+                name="servicios"
+                placeholder={"Ejemplo:\nPanificación artesanal\nTortas personalizadas\nCatering para eventos"}
+                onChange={handleChange}
+                value={form.servicios || ""}
+                className="input min-h-32"
+              />
+
+              <p className="text-xs text-purple-700 mt-1">
+                Escribí un servicio por línea. Se mostrarán como destacados en tu vidriera.
+              </p>
+            </div>
+          ) : (
+            <LockedPlanField
+              title="Servicios destacados"
+              requiredPlan="Premium"
+              description="Mostrá tus productos o servicios principales con una sección especial en la vidriera."
+              onUpgrade={goToPlans}
+            />
           )}
 
           <div className="bg-gray-50 p-4 rounded-xl">
-            <h3 className="font-bold mb-3">Horarios</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h3 className="font-bold">Horarios</h3>
+
+              <button
+                type="button"
+                onClick={applyMondayToWeekdays}
+                className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold"
+              >
+                Copiar lunes a martes-viernes
+              </button>
+            </div>
 
             <p className="text-xs text-gray-500 mb-4">
               Podés cargar horario corrido o horario cortado. Ejemplo: 08:00-12:30 / 16:30-21:00.
@@ -770,7 +1092,7 @@ export default function RegisterBusiness() {
             </div>
           </div>
 
-          {limits.video && (
+          {limits.video ? (
             <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl">
               <p className="font-semibold mb-2">Video Premium (máximo 1)</p>
 
@@ -792,6 +1114,13 @@ export default function RegisterBusiness() {
                 </p>
               )}
             </div>
+          ) : (
+            <LockedPlanField
+              title="Video del negocio"
+              requiredPlan="Premium"
+              description="Sumá un video para mostrar productos, local, trabajos o presentación profesional."
+              onUpgrade={goToPlans}
+            />
           )}
 
           <button
@@ -799,7 +1128,7 @@ export default function RegisterBusiness() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-3 rounded-xl font-bold"
           >
-            {loading ? "Guardando..." : "Guardar"}
+            {loading ? "Guardando..." : currentCompletion >= 70 ? "Guardar y publicar" : "Guardar borrador"}
           </button>
         </div>
 
@@ -832,6 +1161,30 @@ export default function RegisterBusiness() {
               <p className="text-sm mt-2 whitespace-pre-line">
                 {form.descripcion}
               </p>
+
+              {limits.services && form.servicios && (
+                <div className="mt-4 bg-purple-50 border border-purple-100 p-3 rounded-xl">
+                  <p className="font-black text-purple-900 mb-2">
+                    Servicios destacados
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {form.servicios
+                      .split("\n")
+                      .map((item) => item.trim())
+                      .filter(Boolean)
+                      .slice(0, 6)
+                      .map((item) => (
+                        <span
+                          key={item}
+                          className="bg-white border border-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
