@@ -647,7 +647,11 @@ export default function RegisterBusiness() {
     );
   }
 
-  if (!id && !isAdmin) {
+  if (
+  !id &&
+  !isAdmin &&
+  searchParams.get("continue") !== "true"
+) {
     return (
       <div className="min-h-screen bg-slate-100 p-4 md:p-6 flex items-center justify-center">
         <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-full max-w-xl">

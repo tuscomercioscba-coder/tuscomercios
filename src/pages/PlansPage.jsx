@@ -12,6 +12,7 @@ export default function PlansPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      localStorage.setItem("selectedPlan", plan);
       navigate("/login");
       return;
     }
@@ -22,12 +23,16 @@ export default function PlansPage() {
         plan: "free",
       });
 
-      navigate("/register-business?plan=free");
+      localStorage.setItem("selectedPlan", "free");
+
+      navigate("/register-business?plan=free&continue=true");
       return;
     }
 
     try {
       setLoadingPlan(plan);
+
+      localStorage.setItem("selectedPlan", plan);
 
       const response = await fetch("/api/create-subscription", {
         method: "POST",
