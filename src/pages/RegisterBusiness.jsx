@@ -616,9 +616,24 @@ export default function RegisterBusiness() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-        alert("Iniciá sesión");
-        return;
-      }
+
+      localStorage.setItem(
+      "pendingBusiness",
+      JSON.stringify({
+        ...form,
+       horarios,
+    })
+  );
+
+  localStorage.setItem(
+    "selectedPlan",
+    activePlan
+  );
+
+  navigate("/planes");
+
+  return;
+}
 
       if (form.descripcion.length > limits.maxDescription) {
         alert(
@@ -772,62 +787,6 @@ export default function RegisterBusiness() {
       <div className="min-h-screen bg-slate-100 p-6 flex items-center justify-center">
         <div className="bg-white p-6 rounded-2xl shadow">
           Cargando plan...
-        </div>
-      </div>
-    );
-  }
-
-  if (!id && !isAdmin && !continueMode) {
-    return (
-      <div className="min-h-screen bg-slate-100 p-4 md:p-6 flex items-center justify-center">
-        <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-full max-w-xl">
-          <div className="text-center mb-6">
-            <div className="text-5xl mb-3">🚀</div>
-            <h1 className="text-3xl font-black text-slate-900">
-              Reservá tu lugar gratis
-            </h1>
-            <p className="text-slate-500 mt-2">
-              Cargá solo 3 datos y después completás tu vidriera.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <input
-              name="negocio"
-              placeholder="Nombre del negocio"
-              onChange={handleChange}
-              value={form.negocio}
-              className="input"
-            />
-
-            <input
-              name="rubro"
-              placeholder="Rubro (Ej: Panadería, Ferretería, Estética)"
-              onChange={handleChange}
-              value={form.rubro || ""}
-              className="input"
-            />
-
-            <input
-              name="whatsapp"
-              placeholder="WhatsApp"
-              onChange={handleChange}
-              value={form.whatsapp}
-              className="input"
-            />
-
-            <button
-              onClick={handleQuickSubmit}
-              disabled={quickLoading}
-              className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-green-700 transition"
-            >
-              {quickLoading ? "Reservando..." : "🚀 Reservar mi lugar"}
-            </button>
-
-            <p className="text-xs text-center text-slate-500">
-              Tu vidriera no se publica hasta que tenga suficiente información.
-            </p>
-          </div>
         </div>
       </div>
     );
@@ -1141,7 +1100,7 @@ export default function RegisterBusiness() {
                 onClick={applyMondayToWeekdays}
                 className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold"
               >
-                Copiar lunes a martes-viernes
+                Mismo horario lunes a viernes
               </button>
             </div>
 
