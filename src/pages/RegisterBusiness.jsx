@@ -39,6 +39,65 @@ const PLAN_LIMITS = {
   },
 };
 
+const PROVINCIAS_LOCALIDADES = {
+  Córdoba: [
+    "Villa Dolores",
+    "Córdoba Capital",
+    "Mina Clavero",
+    "Villa Cura Brochero",
+    "San Pedro",
+    "San Javier",
+    "Yacanto",
+    "Nono",
+    "Las Rabonas",
+    "Los Hornillos",
+    "La Paz",
+    "Luyaba",
+    "Villa Sarmiento",
+    "Las Tapias",
+    "San José",
+    "Villa de las Rosas",
+    "Los Cerrillos",
+    "Salsacate",
+    "Carlos Paz",
+    "Alta Gracia",
+    "Río Cuarto",
+    "Villa María",
+    "San Francisco",
+    "Río Tercero",
+    "Bell Ville",
+    "Jesús María",
+    "Cosquín",
+    "La Falda",
+    "Cruz del Eje",
+    "Deán Funes",
+    "Marcos Juárez",
+    "Laboulaye",
+  ],
+  "San Luis": [
+    "San Luis Capital",
+    "Villa de Merlo",
+    "Villa Mercedes",
+    "La Punta",
+    "Juana Koslay",
+    "Santa Rosa del Conlara",
+    "Concarán",
+    "Naschel",
+    "Tilisarao",
+    "Justo Daract",
+    "Quines",
+    "Candelaria",
+    "Buena Esperanza",
+    "La Toma",
+    "Carpintería",
+    "Los Molles",
+    "Cortaderas",
+    "Papagayos",
+    "Lafinur",
+  ],
+};
+
+
 function slugify(text) {
   return text
     .toString()
@@ -113,6 +172,9 @@ export default function RegisterBusiness() {
   const navigate = useNavigate();
 
   const planParam = searchParams.get("plan");
+  const continueMode = searchParams.get("continue") === "true";
+  const selectedPlanParam =
+    planParam || localStorage.getItem("selectedPlan") || "free";
   const isAdmin = searchParams.get("admin") === "true";
 
   const [userPlan, setUserPlan] = useState(null);
@@ -138,14 +200,14 @@ export default function RegisterBusiness() {
     video: "",
     lat: null,
     lng: null,
-    plan: planParam || "free",
+    plan: selectedPlanParam || "free",
     status: "draft",
     completion: 0,
   });
 
   const activePlan = isAdmin
     ? form.plan || "free"
-    : userPlan || planParam || form.plan || "free";
+    : userPlan || selectedPlanParam || form.plan || "free";
 
   const limits = PLAN_LIMITS[activePlan] || PLAN_LIMITS.free;
 
@@ -159,6 +221,48 @@ export default function RegisterBusiness() {
   useEffect(() => {
     loadInitialData();
   }, [id]);
+
+  useEffect(() => {
+    if (!id && continueMode) {
+      restorePendingBusiness();
+    }
+  }, []);
+
+  function restorePendingBusiness() {
+    try {
+      const pendingBusiness = JSON.parse(
+        localStorage.getItem("pendingBusiness") || "{}"
+      );
+
+      const selectedPlan =
+        localStorage.getItem("selectedPlan") || selectedPlanParam || "free";
+
+      setForm((prev) => ({
+        ...prev,
+        negocio: pendingBusiness.negocio || prev.negocio,
+        rubro: pendingBusiness.rubro || prev.rubro,
+        whatsapp: pendingBusiness.whatsapp || prev.whatsapp,
+        ciudad: pendingBusiness.ciudad || prev.ciudad,
+        provincia: pendingBusiness.provincia || prev.provincia,
+        plan: selectedPlan,
+      }));
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  function savePendingBusiness() {
+    localStorage.setItem(
+      "pendingBusiness",
+      JSON.stringify({
+        negocio: form.negocio,
+        rubro: form.rubro,
+        whatsapp: form.whatsapp,
+        ciudad: form.ciudad,
+        provincia: form.provincia,
+      })
+    );
+  }
 
   async function loadInitialData() {
     setLoadingPlan(true);
@@ -197,10 +301,10 @@ export default function RegisterBusiness() {
 
       setForm((prev) => ({
         ...prev,
-        plan: profile.plan,
+        plan: continueMode ? selectedPlanParam : profile.plan,
       }));
 
-      return profile.plan;
+      return continueMode ? selectedPlanParam : profile.plan;
     }
 
     const { data: subscription } = await supabase
@@ -216,10 +320,10 @@ export default function RegisterBusiness() {
 
       setForm((prev) => ({
         ...prev,
-        plan: subscription.plan,
+        plan: continueMode ? selectedPlanParam : subscription.plan,
       }));
 
-      return subscription.plan;
+      return continueMode ? selectedPlanParam : subscription.plan;
     }
 
     setUserPlan(null);
@@ -300,6 +404,24 @@ export default function RegisterBusiness() {
 
   function goToPlans() {
     navigate("/planes");
+  }
+
+  function handleProvinceChange(e) {
+    const provincia = e.target.value;
+    const localidades = PROVINCIAS_LOCALIDADES[provincia] || [];
+
+    setForm((prev) => ({
+      ...prev,
+      provincia,
+      ciudad: localidades.includes(prev.ciudad) ? prev.ciudad : "",
+    }));
+  }
+
+  function handleCityChange(e) {
+    setForm((prev) => ({
+      ...prev,
+      ciudad: e.target.value,
+    }));
   }
 
   function handleChange(e) {
@@ -429,6 +551,14 @@ export default function RegisterBusiness() {
     try {
       setQuickLoading(true);
 
+      if (!form.negocio || !form.rubro || !form.whatsapp) {
+        alert("Completá nombre del negocio, rubro y WhatsApp.");
+        return;
+      }
+
+      savePendingBusiness();
+      localStorage.setItem("selectedPlan", activePlan || "free");
+
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -436,17 +566,12 @@ export default function RegisterBusiness() {
         return;
       }
 
-      if (!form.negocio || !form.rubro || !form.whatsapp) {
-        alert("Completá nombre del negocio, rubro y WhatsApp.");
-        return;
-      }
-
       const payload = {
         negocio: form.negocio,
         rubro: form.rubro,
         whatsapp: form.whatsapp,
-        ciudad: "",
-        provincia: "",
+        ciudad: form.ciudad || "",
+        provincia: form.provincia || "",
         direccion: "",
         descripcion: "",
         image: "",
@@ -470,6 +595,8 @@ export default function RegisterBusiness() {
         alert(JSON.stringify(error));
         return;
       }
+
+      localStorage.removeItem("pendingBusiness");
 
       alert("Tu lugar quedó reservado 🙌 Ahora completá la vidriera para publicarla.");
 
@@ -612,6 +739,9 @@ export default function RegisterBusiness() {
         return;
       }
 
+      localStorage.removeItem("pendingBusiness");
+      localStorage.removeItem("selectedPlan");
+
       if (completion >= 70) {
         alert("Guardado correctamente 🚀 Tu vidriera ya está publicada.");
       } else {
@@ -647,11 +777,7 @@ export default function RegisterBusiness() {
     );
   }
 
-  if (
-  !id &&
-  !isAdmin &&
-  searchParams.get("continue") !== "true"
-) {
+  if (!id && !isAdmin && !continueMode) {
     return (
       <div className="min-h-screen bg-slate-100 p-4 md:p-6 flex items-center justify-center">
         <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-full max-w-xl">
@@ -815,21 +941,52 @@ export default function RegisterBusiness() {
             className="input"
           />
 
-          <input
-            name="ciudad"
-            placeholder="Ciudad"
-            onChange={handleChange}
-            value={form.ciudad}
-            className="input"
-          />
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                Provincia
+              </label>
 
-          <input
-            name="provincia"
-            placeholder="Provincia"
-            onChange={handleChange}
-            value={form.provincia}
-            className="input"
-          />
+              <select
+                name="provincia"
+                value={form.provincia || ""}
+                onChange={handleProvinceChange}
+                className="input"
+              >
+                <option value="">Seleccionar provincia</option>
+
+                {Object.keys(PROVINCIAS_LOCALIDADES).map((provincia) => (
+                  <option key={provincia} value={provincia}>
+                    {provincia}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                Localidad
+              </label>
+
+              <select
+                name="ciudad"
+                value={form.ciudad || ""}
+                onChange={handleCityChange}
+                className="input"
+                disabled={!form.provincia}
+              >
+                <option value="">
+                  {form.provincia ? "Seleccionar localidad" : "Primero elegí provincia"}
+                </option>
+
+                {(PROVINCIAS_LOCALIDADES[form.provincia] || []).map((localidad) => (
+                  <option key={localidad} value={localidad}>
+                    {localidad}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <input
             name="direccion"
