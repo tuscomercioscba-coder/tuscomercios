@@ -274,7 +274,8 @@ export default function BusinessView() {
   const currentImage =
     images[index] || "https://placehold.co/1200x700?text=Tus+Comercios";
 
-  const shareUrl = window.location.href;
+  const cleanShareUrl = `${window.location.origin}/${business.slug || slug}`;
+  const shareUrl = `${cleanShareUrl}?v=${business.id || Date.now()}`;
   const shareText = `Mirá ${business.negocio} en Tus Comercios`;
 
   const message = encodeURIComponent(
