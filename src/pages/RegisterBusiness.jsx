@@ -172,14 +172,11 @@ export default function RegisterBusiness() {
   const navigate = useNavigate();
 
   const planParam = searchParams.get("plan");
-  const continueMode = searchParams.get("continue") === "true";
-  const selectedPlanParam =
-    planParam || localStorage.getItem("selectedPlan") || "free";
+  const selectedPlanParam = planParam;
   const isAdmin = searchParams.get("admin") === "true";
 
   const [userPlan, setUserPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
-  const [quickLoading, setQuickLoading] = useState(false);
 
   const [form, setForm] = useState({
     negocio: "",
@@ -207,7 +204,7 @@ export default function RegisterBusiness() {
 
   const activePlan = isAdmin
     ? form.plan || "free"
-    : userPlan || selectedPlanParam || form.plan || "free";
+    : userPlan || form.plan || "free";
 
   const limits = PLAN_LIMITS[activePlan] || PLAN_LIMITS.free;
 
@@ -221,48 +218,6 @@ export default function RegisterBusiness() {
   useEffect(() => {
     loadInitialData();
   }, [id]);
-
-  useEffect(() => {
-    if (!id && continueMode) {
-      restorePendingBusiness();
-    }
-  }, []);
-
-  function restorePendingBusiness() {
-    try {
-      const pendingBusiness = JSON.parse(
-        localStorage.getItem("pendingBusiness") || "{}"
-      );
-
-      const selectedPlan =
-        localStorage.getItem("selectedPlan") || selectedPlanParam || "free";
-
-      setForm((prev) => ({
-        ...prev,
-        negocio: pendingBusiness.negocio || prev.negocio,
-        rubro: pendingBusiness.rubro || prev.rubro,
-        whatsapp: pendingBusiness.whatsapp || prev.whatsapp,
-        ciudad: pendingBusiness.ciudad || prev.ciudad,
-        provincia: pendingBusiness.provincia || prev.provincia,
-        plan: selectedPlan,
-      }));
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-  function savePendingBusiness() {
-    localStorage.setItem(
-      "pendingBusiness",
-      JSON.stringify({
-        negocio: form.negocio,
-        rubro: form.rubro,
-        whatsapp: form.whatsapp,
-        ciudad: form.ciudad,
-        provincia: form.provincia,
-      })
-    );
-  }
 
   async function loadInitialData() {
     setLoadingPlan(true);
@@ -301,10 +256,10 @@ export default function RegisterBusiness() {
 
       setForm((prev) => ({
         ...prev,
-        plan: continueMode ? selectedPlanParam : profile.plan,
+        plan: profile.plan,
       }));
 
-      return continueMode ? selectedPlanParam : profile.plan;
+      return profile.plan;
     }
 
     const { data: subscription } = await supabase
@@ -320,10 +275,10 @@ export default function RegisterBusiness() {
 
       setForm((prev) => ({
         ...prev,
-        plan: continueMode ? selectedPlanParam : subscription.plan,
+        plan: subscription.plan,
       }));
 
-      return continueMode ? selectedPlanParam : subscription.plan;
+      return subscription.plan;
     }
 
     setUserPlan(null);
@@ -344,8 +299,8 @@ export default function RegisterBusiness() {
 
     if (data) {
       const finalPlan = isAdmin
-        ? data.plan || planParam || "free"
-        : realPlan || planParam || data.plan || "free";
+        ? data.plan || "free"
+        : realPlan || data.plan || "free";
 
       setForm({
         ...data,
@@ -547,68 +502,6 @@ export default function RegisterBusiness() {
     return publicData.publicUrl;
   };
 
-  async function handleQuickSubmit() {
-    try {
-      setQuickLoading(true);
-
-      if (!form.negocio || !form.rubro || !form.whatsapp) {
-        alert("Completá nombre del negocio, rubro y WhatsApp.");
-        return;
-      }
-
-      savePendingBusiness();
-      localStorage.setItem("selectedPlan", activePlan || "free");
-
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData.user) {
-        window.location.href = "/login";
-        return;
-      }
-
-      const payload = {
-        negocio: form.negocio,
-        rubro: form.rubro,
-        whatsapp: form.whatsapp,
-        ciudad: form.ciudad || "",
-        provincia: form.provincia || "",
-        direccion: "",
-        descripcion: "",
-        image: "",
-        images: [],
-        horarios: {},
-        slug: slugify(`${form.negocio}-${Date.now()}`),
-        plan: activePlan,
-        user_id: userData.user.id,
-        status: "draft",
-        completion: 15,
-      };
-
-      const { data, error } = await supabase
-        .from("businesses")
-        .insert([payload])
-        .select("id")
-        .single();
-
-      if (error) {
-        console.error(error);
-        alert(JSON.stringify(error));
-        return;
-      }
-
-      localStorage.removeItem("pendingBusiness");
-
-      alert("Tu lugar quedó reservado 🙌 Ahora completá la vidriera para publicarla.");
-
-      window.location.href = `/editar/${data.id}`;
-    } catch (error) {
-      console.error(error);
-      alert("Error al reservar el lugar");
-    } finally {
-      setQuickLoading(false);
-    }
-  }
-
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -616,24 +509,10 @@ export default function RegisterBusiness() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-
-      localStorage.setItem(
-      "pendingBusiness",
-      JSON.stringify({
-        ...form,
-       horarios,
-    })
-  );
-
-  localStorage.setItem(
-    "selectedPlan",
-    activePlan
-  );
-
-  navigate("/planes");
-
-  return;
-}
+       setLoading(false);
+       navigate("/login");
+      return;
+      }
 
       if (form.descripcion.length > limits.maxDescription) {
         alert(
@@ -753,9 +632,6 @@ export default function RegisterBusiness() {
         alert(JSON.stringify(response.error));
         return;
       }
-
-      localStorage.removeItem("pendingBusiness");
-      localStorage.removeItem("selectedPlan");
 
       if (completion >= 70) {
         alert("Guardado correctamente 🚀 Tu vidriera ya está publicada.");
