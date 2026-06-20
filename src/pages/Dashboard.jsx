@@ -486,6 +486,8 @@ export default function Dashboard() {
                 ]}
               />
 
+              <UpgradePlanCTA businesses={businesses} navigate={navigate} />
+
               <BannerCTA canCreateBanner={canCreateBanner} navigate={navigate} />
 
               <UserBanners
@@ -839,6 +841,53 @@ export default function Dashboard() {
   );
 }
 
+function UpgradePlanCTA({ businesses, navigate }) {
+  const upgradableBusinesses = businesses.filter(
+    (b) => (b.plan || "free") !== "premium"
+  );
+
+  if (upgradableBusinesses.length === 0) return null;
+
+  const hasFree = upgradableBusinesses.some(
+    (b) => (b.plan || "free") === "free"
+  );
+
+  return (
+    <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl p-6 text-white shadow-xl mb-8 border border-amber-300">
+      <h2 className="text-2xl font-black mb-2">
+        ✨ Potenciá tu negocio
+      </h2>
+
+      <p className="text-purple-100 mb-4">
+        {hasFree
+          ? "Pasá de Gratis a un plan pago y mostrá tu negocio con más fotos, redes, prioridad y mejor imagen."
+          : "Subí a Premium y convertí tu vidriera en una mini página web profesional."}
+      </p>
+
+      <div className="grid md:grid-cols-3 gap-3 mb-5 text-sm">
+        <div className="bg-white/10 rounded-2xl p-3">
+          ✔ Más prioridad
+        </div>
+
+        <div className="bg-white/10 rounded-2xl p-3">
+          ✔ Más fotos y redes
+        </div>
+
+        <div className="bg-white/10 rounded-2xl p-3">
+          ✔ Mejor presentación
+        </div>
+      </div>
+
+      <button
+        onClick={() => navigate("/planes")}
+        className="bg-amber-400 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-amber-300 transition"
+      >
+        {hasFree ? "Pasar a un plan pago" : "Subir a Premium"}
+      </button>
+    </div>
+  );
+}
+
 function BannerCTA({ canCreateBanner, navigate, isAdmin = false }) {
   return (
     <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl mb-8">
@@ -910,7 +959,7 @@ function UserBanners({
                 </button>
 
                 <button onClick={() => navigate(`/editar-banner/${banner.id}`)} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm">
-                  {(b.status || "published") === "published" ? "Editar" : "Continuar"}
+                  Editar
                 </button>
 
                 <button onClick={() => toggleBannerActive(banner.id, banner.active)} className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm">
