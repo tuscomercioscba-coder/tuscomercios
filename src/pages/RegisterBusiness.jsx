@@ -587,7 +587,7 @@ export default function RegisterBusiness() {
 
         slug: form.slug || slugify(`${form.negocio}-${form.ciudad || Date.now()}`),
 
-        plan: activePlan,
+        plan: id ? form.plan || "free" : activePlan,
 
         user_id: id ? form.user_id || userData.user.id : userData.user.id,
 
