@@ -204,6 +204,8 @@ export default function RegisterBusiness() {
 
   const activePlan = isAdmin
     ? form.plan || "free"
+    : id
+    ? form.plan || "free"
     : userPlan || form.plan || "free";
 
   const limits = PLAN_LIMITS[activePlan] || PLAN_LIMITS.free;
@@ -254,10 +256,12 @@ export default function RegisterBusiness() {
     if (profile?.plan) {
       setUserPlan(profile.plan);
 
-      setForm((prev) => ({
-        ...prev,
-        plan: profile.plan,
-      }));
+      if (!id) {
+        setForm((prev) => ({
+          ...prev,
+          plan: profile.plan,
+        }));
+      }
 
       return profile.plan;
     }
@@ -273,10 +277,12 @@ export default function RegisterBusiness() {
     if (subscription?.plan) {
       setUserPlan(subscription.plan);
 
-      setForm((prev) => ({
-        ...prev,
-        plan: subscription.plan,
-      }));
+      if (!id) {
+        setForm((prev) => ({
+          ...prev,
+          plan: subscription.plan,
+        }));
+      }
 
       return subscription.plan;
     }
@@ -298,9 +304,7 @@ export default function RegisterBusiness() {
     }
 
     if (data) {
-      const finalPlan = isAdmin
-        ? data.plan || "free"
-        : realPlan || data.plan || "free";
+      const finalPlan = data.plan || "free";
 
       setForm({
         ...data,
@@ -509,9 +513,9 @@ export default function RegisterBusiness() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-       setLoading(false);
-       navigate("/login");
-      return;
+        setLoading(false);
+        navigate("/login");
+        return;
       }
 
       if (form.descripcion.length > limits.maxDescription) {
