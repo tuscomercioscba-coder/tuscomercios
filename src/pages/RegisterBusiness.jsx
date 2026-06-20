@@ -142,6 +142,51 @@ function calculateCompletion(data, horariosData) {
 }
 
 
+
+function UpgradePlanBox({ currentPlan, onUpgrade }) {
+  if (currentPlan === "premium") return null;
+
+  const title =
+    currentPlan === "standard"
+      ? "Subí tu vidriera a Premium"
+      : "Mejorá tu vidriera";
+
+  const description =
+    currentPlan === "standard"
+      ? "Activá video, mapa visible, servicios destacados, portada premium y máxima prioridad."
+      : "Pasá a Estándar o Premium para sumar más fotos, redes sociales, mejor presentación y más prioridad.";
+
+  const buttonText =
+    currentPlan === "standard"
+      ? "Subir a Premium"
+      : "Ver planes pagos";
+
+  return (
+    <div className="bg-gradient-to-r from-slate-950 to-purple-900 border border-amber-300 text-white p-4 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <p className="text-lg font-black">
+            ✨ {title}
+          </p>
+
+          <p className="text-sm text-purple-100 mt-1">
+            {description}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onUpgrade}
+          className="bg-amber-400 text-slate-950 px-5 py-3 rounded-xl font-black hover:bg-amber-300 transition"
+        >
+          {buttonText}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function LockedPlanField({ title, requiredPlan, description, onUpgrade }) {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -740,6 +785,13 @@ export default function RegisterBusiness() {
             <b>{limits.maxDescription}</b> caracteres
             {limits.video && <> · 1 video</>}
           </div>
+
+          {!isAdmin && id && (
+            <UpgradePlanBox
+              currentPlan={activePlan}
+              onUpgrade={goToPlans}
+            />
+          )}
 
           {isAdmin && (
             <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
