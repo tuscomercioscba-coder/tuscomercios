@@ -243,8 +243,7 @@ export default function RegisterBusiness() {
     lat: null,
     lng: null,
     plan: selectedPlanParam || "free",
-    status: "draft",
-    completion: 0,
+    status: "published",
   });
 
   const activePlan = isAdmin
@@ -360,8 +359,7 @@ export default function RegisterBusiness() {
         lat: data.lat || null,
         lng: data.lng || null,
         status: data.status || "draft",
-        completion: data.completion || 0,
-        plan: finalPlan,
+                plan: finalPlan,
       });
 
       const finalLimits = PLAN_LIMITS[finalPlan] || PLAN_LIMITS.free;
@@ -629,7 +627,7 @@ export default function RegisterBusiness() {
         images: finalImages,
       };
 
-      const completion = calculateCompletion(dataForCompletion, horarios);
+      const completion = 100;
 
       const payload = {
         ...form,
@@ -660,9 +658,7 @@ export default function RegisterBusiness() {
         lat: form.lat,
         lng: form.lng,
 
-        completion,
-
-        status: completion >= 70 ? "published" : "draft",
+        status: "published",
       };
 
       let response;
@@ -682,11 +678,7 @@ export default function RegisterBusiness() {
         return;
       }
 
-      if (completion >= 70) {
-        alert("Guardado correctamente 🚀 Tu vidriera ya está publicada.");
-      } else {
-        alert(`Guardado como borrador. Completá la vidriera para publicarla. Progreso: ${completion}%`);
-      }
+      alert("Guardado correctamente 🚀 Tu negocio ya está publicado.");
 
       window.location.href = "/dashboard";
     } catch (err) {
@@ -1180,7 +1172,7 @@ export default function RegisterBusiness() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-3 rounded-xl font-bold"
           >
-            {loading ? "Guardando..." : currentCompletion >= 70 ? "Guardar y publicar" : "Guardar borrador"}
+            {loading ? "Guardando..." : "Guardar negocio"}
           </button>
         </div>
 
