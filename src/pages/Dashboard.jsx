@@ -18,13 +18,49 @@ export default function Dashboard() {
   const [clicksByBusiness, setClicksByBusiness] = useState({});
   const [visitsByBusiness, setVisitsByBusiness] = useState({});
   const [viewsByBusiness, setViewsByBusiness] = useState({});
+  const [paymentRecords, setPaymentRecords] = useState([]);
+  const [platformCosts, setPlatformCosts] = useState(null);
+  const [financeFilter, setFinanceFilter] = useState("current");
+  const [financeStartDate, setFinanceStartDate] = useState("");
+  const [financeEndDate, setFinanceEndDate] = useState("");
+  const [savingCosts, setSavingCosts] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
+  function getMonthKey(date = new Date()) {
+    return date.toISOString().slice(0, 7);
+  }
+
+  function getFinanceRange() {
+    const now = new Date();
+
+    if (financeFilter === "previous") {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      return { start, end, monthKey: getMonthKey(start) };
+    }
+
+    if (financeFilter === "custom" && financeStartDate && financeEndDate) {
+      const start = new Date(`${financeStartDate}T00:00:00`);
+      const end = new Date(`${financeEndDate}T23:59:59`);
+      return { start, end, monthKey: getMonthKey(start) };
+    }
+
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return { start, end, monthKey: getMonthKey(start) };
+  }
+
   useEffect(() => {
     getData();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadFinanceData();
+    }
+  }, [financeFilter, financeStartDate, financeEndDate, isAdmin]);
 
   async function getData() {
   setLoading(true);
@@ -132,6 +168,79 @@ export default function Dashboard() {
 
   setLoading(false);
 }
+
+  async function loadFinanceData() {
+    const range = getFinanceRange();
+
+    const { data: paymentsData } = await supabase
+      .from("payment_records")
+      .select("*")
+      .eq("estado_pago", "approved")
+      .gte("fecha_pago", range.start.toISOString())
+      .lte("fecha_pago", range.end.toISOString())
+      .order("fecha_pago", { ascending: false });
+
+    setPaymentRecords(paymentsData || []);
+
+    const { data: costsData } = await supabase
+      .from("platform_costs")
+      .select("*")
+      .eq("month", range.monthKey)
+      .maybeSingle();
+
+    setPlatformCosts(
+      costsData || {
+        month: range.monthKey,
+        chatgpt: 0,
+        supabase: 0,
+        cloudflare: 0,
+        dominio: 0,
+        publicidad: 0,
+        otros: 0,
+      }
+    );
+  }
+
+  function updateCostField(field, value) {
+    setPlatformCosts((prev) => ({
+      ...(prev || {}),
+      [field]: Number(value || 0),
+    }));
+  }
+
+  async function savePlatformCosts() {
+    if (!platformCosts?.month) return;
+
+    try {
+      setSavingCosts(true);
+
+      const payload = {
+        month: platformCosts.month,
+        chatgpt: Number(platformCosts.chatgpt || 0),
+        supabase: Number(platformCosts.supabase || 0),
+        cloudflare: Number(platformCosts.cloudflare || 0),
+        dominio: Number(platformCosts.dominio || 0),
+        publicidad: Number(platformCosts.publicidad || 0),
+        otros: Number(platformCosts.otros || 0),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("platform_costs")
+        .upsert(payload, { onConflict: "month" });
+
+      if (error) {
+        console.error(error);
+        alert("Error guardando costos");
+        return;
+      }
+
+      await loadFinanceData();
+      alert("Costos guardados correctamente");
+    } finally {
+      setSavingCosts(false);
+    }
+  }
 
   function groupByBusiness(rows) {
     const grouped = {};
@@ -458,7 +567,7 @@ export default function Dashboard() {
                 ["suscripciones", "Suscripciones"],
                 ["banners", "Banners"],
                 ["metricas", "Métricas"],
-                ["analiticas", "Analíticas"],
+                ["finanzas", "Rentabilidad / Finanzas"],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -479,10 +588,15 @@ export default function Dashboard() {
             <>
               <StatsGrid
                 items={[
-                  ["Publicadas", publishedBusinesses.length, "bg-green-50", "text-green-700"],
-                  ["Borradores", draftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
+                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
                   ["Vistas", totalViews, "bg-blue-50", "text-blue-700"],
                   ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
+                  [
+                    "Conversión",
+                    totalViews ? `${Math.round((totalClicks / totalViews) * 100)}%` : "0%",
+                    "bg-purple-50",
+                    "text-purple-700",
+                  ],
                 ]}
               />
 
@@ -515,13 +629,16 @@ export default function Dashboard() {
               <StatsGrid
                 items={[
                   ["Total negocios", allBusinesses.length, "bg-white", "text-slate-800"],
-                  ["Publicados", allPublishedBusinesses.length, "bg-green-50", "text-green-700"],
-                  ["Borradores", allDraftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
                   ["Usuarios", profiles.length, "bg-blue-50", "text-blue-700"],
-                  ["Ingresos reales", money(realMonthlyIncome), "bg-purple-50", "text-purple-700"],
-                  ["Banners", banners.length, "bg-pink-50", "text-pink-700"],
-                  ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
                   ["Vistas vidrieras", totalViews, "bg-blue-50", "text-blue-700"],
+                  ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
+                  [
+                    "Conversión",
+                    totalViews ? `${Math.round((totalClicks / totalViews) * 100)}%` : "0%",
+                    "bg-purple-50",
+                    "text-purple-700",
+                  ],
+                  ["Ingresos reales", money(realMonthlyIncome), "bg-purple-50", "text-purple-700"],
                 ]}
               />
 
@@ -569,8 +686,7 @@ export default function Dashboard() {
             <>
               <StatsGrid
                 items={[
-                  ["Mis publicados", publishedBusinesses.length, "bg-green-50", "text-green-700"],
-                  ["Mis borradores", draftBusinesses.length, "bg-yellow-50", "text-yellow-700"],
+                  ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
                   [
                     "Mis vistas",
                     businesses.reduce((total, b) => total + (viewsByBusiness[b.id] || 0), 0),
@@ -582,6 +698,18 @@ export default function Dashboard() {
                     businesses.reduce((total, b) => total + (clicksByBusiness[b.id] || 0), 0),
                     "bg-green-50",
                     "text-green-700",
+                  ],
+                  [
+                    "Conversión",
+                    businesses.reduce((total, b) => total + (viewsByBusiness[b.id] || 0), 0)
+                      ? `${Math.round(
+                          (businesses.reduce((total, b) => total + (clicksByBusiness[b.id] || 0), 0) /
+                            businesses.reduce((total, b) => total + (viewsByBusiness[b.id] || 0), 0)) *
+                            100
+                        )}%`
+                      : "0%",
+                    "bg-purple-50",
+                    "text-purple-700",
                   ],
                 ]}
               />
@@ -788,56 +916,326 @@ export default function Dashboard() {
           )}
 
           {isAdmin && activeTab === "metricas" && (
-            <AdminTable title="Ranking por rendimiento">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="p-3">Negocio</th>
-                    <th className="p-3">Plan</th>
-                    <th className="p-3">Vistas</th>
-                    <th className="p-3">Clicks WhatsApp</th>
-                    <th className="p-3">Conversión</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {[...allBusinesses]
-                    .sort(
-                      (a, b) =>
-                        (clicksByBusiness[b.id] || 0) -
-                        (clicksByBusiness[a.id] || 0)
-                    )
-                    .map((b) => {
-                      const views = viewsByBusiness[b.id] || 0;
-                      const clicks = clicksByBusiness[b.id] || 0;
-                      const conversion = views ? Math.round((clicks / views) * 100) : 0;
-
-                      return (
-                        <tr key={b.id} className="border-b">
-                          <td className="p-3 font-bold">{b.negocio}</td>
-                          <td className="p-3">{b.plan || "free"}</td>
-                          <td className="p-3">{views}</td>
-                          <td className="p-3">{clicks}</td>
-                          <td className="p-3">{conversion}%</td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </AdminTable>
-          )}
-
-          {isAdmin && activeTab === "analiticas" && (
-            <AdminAnalytics
-              pageEvents={pageEvents}
+            <AdminGrowthMetrics
               allBusinesses={allBusinesses}
               viewsByBusiness={viewsByBusiness}
               clicksByBusiness={clicksByBusiness}
+              navigate={navigate}
+            />
+          )}
+
+          {isAdmin && activeTab === "finanzas" && (
+            <FinanceDashboard
+              paymentRecords={paymentRecords}
+              platformCosts={platformCosts}
+              financeFilter={financeFilter}
+              setFinanceFilter={setFinanceFilter}
+              financeStartDate={financeStartDate}
+              setFinanceStartDate={setFinanceStartDate}
+              financeEndDate={financeEndDate}
+              setFinanceEndDate={setFinanceEndDate}
+              updateCostField={updateCostField}
+              savePlatformCosts={savePlatformCosts}
+              savingCosts={savingCosts}
+              money={money}
             />
           )}
         </div>
       </div>
     </Layout>
+  );
+}
+
+
+function FinanceDashboard({
+  paymentRecords,
+  platformCosts,
+  financeFilter,
+  setFinanceFilter,
+  financeStartDate,
+  setFinanceStartDate,
+  financeEndDate,
+  setFinanceEndDate,
+  updateCostField,
+  savePlatformCosts,
+  savingCosts,
+  money,
+}) {
+  const approvedPayments = paymentRecords || [];
+
+  const grossIncome = approvedPayments.reduce(
+    (total, payment) => total + Number(payment.precio || 0),
+    0
+  );
+
+  const mercadoPagoDiscounts = approvedPayments.reduce((total, payment) => {
+    if (payment.comision_mp !== null && payment.comision_mp !== undefined) {
+      return total + Number(payment.comision_mp || 0);
+    }
+
+    if (payment.monto_liquidado !== null && payment.monto_liquidado !== undefined) {
+      return total + (Number(payment.precio || 0) - Number(payment.monto_liquidado || 0));
+    }
+
+    return total + Number(payment.precio || 0) * 0.08;
+  }, 0);
+
+  const netReceived = approvedPayments.reduce((total, payment) => {
+    if (payment.monto_liquidado !== null && payment.monto_liquidado !== undefined) {
+      return total + Number(payment.monto_liquidado || 0);
+    }
+
+    return total + Number(payment.precio || 0) * 0.92;
+  }, 0);
+
+  const monthlyCosts =
+    Number(platformCosts?.chatgpt || 0) +
+    Number(platformCosts?.supabase || 0) +
+    Number(platformCosts?.cloudflare || 0) +
+    Number(platformCosts?.dominio || 0) +
+    Number(platformCosts?.publicidad || 0) +
+    Number(platformCosts?.otros || 0);
+
+  const profit = netReceived - monthlyCosts;
+  const paidClients = approvedPayments.length;
+  const averageNetPerClient = paidClients ? netReceived / paidClients : 0;
+  const breakEvenClients = averageNetPerClient
+    ? Math.ceil(monthlyCosts / averageNetPerClient)
+    : 0;
+
+  const standardNet = 7361;
+  const premiumNet = 15000 * 0.92;
+  const standardNeeded = monthlyCosts ? Math.ceil(monthlyCosts / standardNet) : 0;
+  const premiumNeeded = monthlyCosts ? Math.ceil(monthlyCosts / premiumNet) : 0;
+
+  const standardPayments = approvedPayments.filter(
+    (payment) => payment.plan === "standard"
+  ).length;
+
+  const premiumPayments = approvedPayments.filter(
+    (payment) => payment.plan === "premium"
+  ).length;
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-white rounded-3xl shadow p-6">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900">
+              Rentabilidad / Finanzas
+            </h2>
+
+            <p className="text-slate-500 text-sm">
+              Calculá ingresos, descuentos de Mercado Pago, costos, ganancia y punto de equilibrio.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFinanceFilter("current")}
+              className={`px-4 py-2 rounded-xl font-bold ${
+                financeFilter === "current"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              Mes actual
+            </button>
+
+            <button
+              onClick={() => setFinanceFilter("previous")}
+              className={`px-4 py-2 rounded-xl font-bold ${
+                financeFilter === "previous"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              Mes anterior
+            </button>
+
+            <button
+              onClick={() => setFinanceFilter("custom")}
+              className={`px-4 py-2 rounded-xl font-bold ${
+                financeFilter === "custom"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              Personalizado
+            </button>
+          </div>
+        </div>
+
+        {financeFilter === "custom" && (
+          <div className="grid md:grid-cols-2 gap-3 mb-5">
+            <input
+              type="date"
+              value={financeStartDate}
+              onChange={(e) => setFinanceStartDate(e.target.value)}
+              className="border rounded-xl px-4 py-3"
+            />
+
+            <input
+              type="date"
+              value={financeEndDate}
+              onChange={(e) => setFinanceEndDate(e.target.value)}
+              className="border rounded-xl px-4 py-3"
+            />
+          </div>
+        )}
+
+        <StatsGrid
+          items={[
+            ["Ingresos brutos", money(grossIncome), "bg-green-50", "text-green-700"],
+            ["Descuentos Mercado Pago", money(mercadoPagoDiscounts), "bg-red-50", "text-red-700"],
+            ["Neto recibido", money(netReceived), "bg-blue-50", "text-blue-700"],
+            ["Costos mensuales", money(monthlyCosts), "bg-orange-50", "text-orange-700"],
+            [
+              "Ganancia estimada",
+              money(profit),
+              profit >= 0 ? "bg-purple-50" : "bg-red-50",
+              profit >= 0 ? "text-purple-700" : "text-red-700",
+            ],
+            ["Clientes pagos", paidClients, "bg-white", "text-slate-800"],
+            ["Punto equilibrio", breakEvenClients, "bg-amber-50", "text-amber-700"],
+            [
+              "Combinación actual",
+              `${standardPayments} estándar / ${premiumPayments} premium`,
+              "bg-slate-50",
+              "text-slate-800",
+            ],
+          ]}
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-3xl shadow p-6">
+          <h3 className="text-xl font-black mb-4">
+            Costos fijos mensuales
+          </h3>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            {[
+              ["chatgpt", "ChatGPT"],
+              ["supabase", "Supabase"],
+              ["cloudflare", "Cloudflare"],
+              ["dominio", "Dominio mensual"],
+              ["publicidad", "Publicidad"],
+              ["otros", "Otros costos"],
+            ].map(([field, label]) => (
+              <label key={field} className="text-sm font-bold text-slate-700">
+                {label}
+                <input
+                  type="number"
+                  value={platformCosts?.[field] || ""}
+                  onChange={(e) => updateCostField(field, e.target.value)}
+                  className="mt-1 w-full border rounded-xl px-4 py-3"
+                  placeholder="0"
+                />
+              </label>
+            ))}
+          </div>
+
+          <button
+            onClick={savePlatformCosts}
+            disabled={savingCosts}
+            className="mt-5 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black hover:bg-black transition disabled:opacity-50"
+          >
+            {savingCosts ? "Guardando..." : "Guardar costos"}
+          </button>
+        </div>
+
+        <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl shadow p-6 text-white">
+          <h3 className="text-xl font-black mb-4">
+            Punto de equilibrio por plan
+          </h3>
+
+          <div className="space-y-4">
+            <div className="bg-white/10 border border-white/20 rounded-2xl p-4">
+              <p className="text-purple-100 text-sm">Estándar</p>
+              <div className="flex justify-between mt-2">
+                <span>Neto estimado</span>
+                <b>{money(standardNet)}</b>
+              </div>
+              <div className="flex justify-between mt-2">
+                <span>Clientes necesarios</span>
+                <b>{standardNeeded}</b>
+              </div>
+            </div>
+
+            <div className="bg-amber-400 text-slate-950 rounded-2xl p-4">
+              <p className="text-sm font-bold">Premium</p>
+              <div className="flex justify-between mt-2">
+                <span>Neto estimado</span>
+                <b>{money(premiumNet)}</b>
+              </div>
+              <div className="flex justify-between mt-2">
+                <span>Clientes necesarios</span>
+                <b>{premiumNeeded}</b>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-purple-100 text-sm mt-5">
+            Si Mercado Pago no informa monto liquidado exacto, se estima 8% de descuento.
+          </p>
+        </div>
+      </div>
+
+      <AdminTable title="Pagos aprobados del período">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b">
+              <th className="p-3">Fecha</th>
+              <th className="p-3">Plan</th>
+              <th className="p-3">Precio</th>
+              <th className="p-3">Comisión MP</th>
+              <th className="p-3">Neto</th>
+              <th className="p-3">Estado</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {approvedPayments.length === 0 && (
+              <tr>
+                <td colSpan="6" className="p-3 text-gray-500">
+                  Todavía no hay pagos aprobados en este período.
+                </td>
+              </tr>
+            )}
+
+            {approvedPayments.map((payment) => {
+              const commission =
+                payment.comision_mp !== null && payment.comision_mp !== undefined
+                  ? Number(payment.comision_mp || 0)
+                  : payment.monto_liquidado !== null && payment.monto_liquidado !== undefined
+                  ? Number(payment.precio || 0) - Number(payment.monto_liquidado || 0)
+                  : Number(payment.precio || 0) * 0.08;
+
+              const net =
+                payment.monto_liquidado !== null && payment.monto_liquidado !== undefined
+                  ? Number(payment.monto_liquidado || 0)
+                  : Number(payment.precio || 0) - commission;
+
+              return (
+                <tr key={payment.id} className="border-b">
+                  <td className="p-3">
+                    {payment.fecha_pago
+                      ? new Date(payment.fecha_pago).toLocaleDateString("es-AR")
+                      : "-"}
+                  </td>
+                  <td className="p-3 font-bold">{payment.plan}</td>
+                  <td className="p-3">{money(payment.precio)}</td>
+                  <td className="p-3 text-red-600">{money(commission)}</td>
+                  <td className="p-3 text-green-700 font-bold">{money(net)}</td>
+                  <td className="p-3">{payment.estado_pago}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </AdminTable>
+    </div>
   );
 }
 
@@ -1090,6 +1488,240 @@ function AdminTable({ title, children }) {
   );
 }
 
+
+function AdminGrowthMetrics({
+  allBusinesses,
+  viewsByBusiness,
+  clicksByBusiness,
+  navigate,
+}) {
+  function planStats(plan) {
+    const list = allBusinesses.filter((b) => (b.plan || "free") === plan);
+
+    const views = list.reduce(
+      (total, b) => total + (viewsByBusiness[b.id] || 0),
+      0
+    );
+
+    const clicks = list.reduce(
+      (total, b) => total + (clicksByBusiness[b.id] || 0),
+      0
+    );
+
+    return {
+      count: list.length,
+      views,
+      clicks,
+      avgViews: list.length ? Math.round(views / list.length) : 0,
+      avgClicks: list.length ? Math.round(clicks / list.length) : 0,
+      conversion: views ? Math.round((clicks / views) * 100) : 0,
+    };
+  }
+
+  const freeStats = planStats("free");
+  const standardStats = planStats("standard");
+  const premiumStats = planStats("premium");
+
+  const totalViews = Object.values(viewsByBusiness).reduce((a, b) => a + b, 0);
+  const totalClicks = Object.values(clicksByBusiness).reduce((a, b) => a + b, 0);
+
+  const rankingViews = [...allBusinesses]
+    .sort((a, b) => (viewsByBusiness[b.id] || 0) - (viewsByBusiness[a.id] || 0))
+    .slice(0, 15);
+
+  const rankingWhatsApp = [...allBusinesses]
+    .sort((a, b) => (clicksByBusiness[b.id] || 0) - (clicksByBusiness[a.id] || 0))
+    .slice(0, 15);
+
+  const cityStats = Object.values(
+    allBusinesses.reduce((acc, business) => {
+      const city = business.ciudad || "Sin localidad";
+
+      if (!acc[city]) {
+        acc[city] = {
+          city,
+          businesses: 0,
+          views: 0,
+          clicks: 0,
+        };
+      }
+
+      acc[city].businesses += 1;
+      acc[city].views += viewsByBusiness[business.id] || 0;
+      acc[city].clicks += clicksByBusiness[business.id] || 0;
+
+      return acc;
+    }, {})
+  ).sort((a, b) => b.views - a.views || b.clicks - a.clicks);
+
+  return (
+    <div className="space-y-8">
+      <StatsGrid
+        items={[
+          ["Vistas vidrieras", totalViews, "bg-blue-50", "text-blue-700"],
+          ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
+          [
+            "Conversión general",
+            totalViews ? `${Math.round((totalClicks / totalViews) * 100)}%` : "0%",
+            "bg-purple-50",
+            "text-purple-700",
+          ],
+          ["Negocios activos", allBusinesses.length, "bg-white", "text-slate-800"],
+        ]}
+      />
+
+      <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl p-6 text-white shadow-xl">
+        <h2 className="text-2xl font-black mb-2">
+          Comparativa para vender planes
+        </h2>
+
+        <p className="text-purple-100 mb-6">
+          Usá estos datos para mostrar por qué conviene pasar de Gratis a Estándar o Premium.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          <PlanStatsCard title="Gratis" stats={freeStats} />
+          <PlanStatsCard title="Estándar" stats={standardStats} />
+          <PlanStatsCard title="Premium" stats={premiumStats} highlight />
+        </div>
+
+        <button
+          onClick={() => navigate("/planes")}
+          className="mt-6 bg-amber-400 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-amber-300 transition"
+        >
+          Ver planes
+        </button>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <RankingTable
+          title="Top vidrieras por vistas"
+          businesses={rankingViews}
+          viewsByBusiness={viewsByBusiness}
+          clicksByBusiness={clicksByBusiness}
+        />
+
+        <RankingTable
+          title="Top vidrieras por WhatsApp"
+          businesses={rankingWhatsApp}
+          viewsByBusiness={viewsByBusiness}
+          clicksByBusiness={clicksByBusiness}
+        />
+      </div>
+
+      <AdminTable title="Rendimiento por localidad">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b">
+              <th className="p-3">Localidad</th>
+              <th className="p-3">Comercios</th>
+              <th className="p-3">Vistas</th>
+              <th className="p-3">WhatsApp</th>
+              <th className="p-3">Conversión</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {cityStats.map((item) => {
+              const conversion = item.views
+                ? Math.round((item.clicks / item.views) * 100)
+                : 0;
+
+              return (
+                <tr key={item.city} className="border-b">
+                  <td className="p-3 font-bold">{item.city}</td>
+                  <td className="p-3">{item.businesses}</td>
+                  <td className="p-3">{item.views}</td>
+                  <td className="p-3">{item.clicks}</td>
+                  <td className="p-3">{conversion}%</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </AdminTable>
+    </div>
+  );
+}
+
+function PlanStatsCard({ title, stats, highlight = false }) {
+  return (
+    <div
+      className={`rounded-3xl p-5 border ${
+        highlight
+          ? "bg-amber-400 text-slate-950 border-amber-300"
+          : "bg-white/10 border-white/20"
+      }`}
+    >
+      <h3 className="text-xl font-black mb-4">{title}</h3>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Negocios</span>
+          <b>{stats.count}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Vistas promedio</span>
+          <b>{stats.avgViews}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>WhatsApp promedio</span>
+          <b>{stats.avgClicks}</b>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Conversión</span>
+          <b>{stats.conversion}%</b>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RankingTable({
+  title,
+  businesses,
+  viewsByBusiness,
+  clicksByBusiness,
+}) {
+  return (
+    <AdminTable title={title}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left border-b">
+            <th className="p-3">Negocio</th>
+            <th className="p-3">Plan</th>
+            <th className="p-3">Vistas</th>
+            <th className="p-3">WhatsApp</th>
+            <th className="p-3">Conversión</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {businesses.map((b) => {
+            const views = viewsByBusiness[b.id] || 0;
+            const clicks = clicksByBusiness[b.id] || 0;
+            const conversion = views ? Math.round((clicks / views) * 100) : 0;
+
+            return (
+              <tr key={b.id} className="border-b">
+                <td className="p-3 font-bold">{b.negocio}</td>
+                <td className="p-3">{b.plan || "free"}</td>
+                <td className="p-3">{views}</td>
+                <td className="p-3">{clicks}</td>
+                <td className="p-3">{conversion}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </AdminTable>
+  );
+}
+
+
 function BusinessCards({
   businesses,
   clicksByBusiness,
@@ -1145,41 +1777,13 @@ function BusinessCards({
                     {b.plan || "free"}
                   </span>
 
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full font-bold ${
-                      (b.status || "published") === "published"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {(b.status || "published") === "published" ? "Publicada" : "Borrador"}
-                  </span>
+
                 </div>
               </div>
 
               <p className="text-sm mt-3 line-clamp-2 text-gray-600">
                 {b.descripcion || "Vidriera pendiente de completar."}
               </p>
-
-              {(b.status || "published") === "draft" && (
-                <div className="mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-2xl">
-                  <div className="flex justify-between text-sm font-black text-yellow-800 mb-2">
-                    <span>Vidriera en borrador</span>
-                    <span>{b.completion || 0}%</span>
-                  </div>
-
-                  <div className="w-full h-3 bg-white rounded-full overflow-hidden mb-3">
-                    <div
-                      className="h-full bg-yellow-500"
-                      style={{ width: `${b.completion || 0}%` }}
-                    />
-                  </div>
-
-                  <p className="text-sm text-yellow-800">
-                    No aparece en la web hasta completar al menos el 70%.
-                  </p>
-                </div>
-              )}
 
               <div className="grid grid-cols-3 gap-3 mt-5">
                 <div className="bg-blue-50 p-3 rounded-2xl text-center">
@@ -1239,7 +1843,7 @@ function BusinessCards({
                   }}
                   className="flex-1 bg-gray-200 py-3 rounded-xl text-sm hover:bg-gray-300"
                 >
-                  {(b.status || "published") === "published" ? "Ver" : "Vista previa"}
+                  Ver
                 </button>
 
                 <button
