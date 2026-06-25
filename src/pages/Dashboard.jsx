@@ -15,6 +15,12 @@ export default function Dashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("resumen");
 
+  const [metricsFilter, setMetricsFilter] = useState("today");
+  const [metricsStartDate, setMetricsStartDate] = useState("");
+  const [metricsEndDate, setMetricsEndDate] = useState("");
+
+  const [clickRows, setClickRows] = useState([]);
+  const [viewRows, setViewRows] = useState([]);
   const [clicksByBusiness, setClicksByBusiness] = useState({});
   const [visitsByBusiness, setVisitsByBusiness] = useState({});
   const [viewsByBusiness, setViewsByBusiness] = useState({});
@@ -27,6 +33,55 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+
+  function getMetricsRange() {
+    const now = new Date();
+
+    if (metricsFilter === "week") {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+
+      return { start, end };
+    }
+
+    if (metricsFilter === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      return { start, end };
+    }
+
+    if (metricsFilter === "custom" && metricsStartDate && metricsEndDate) {
+      return {
+        start: new Date(`${metricsStartDate}T00:00:00`),
+        end: new Date(`${metricsEndDate}T23:59:59`),
+      };
+    }
+
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  function filterRowsByDate(rows, dateField = "created_at") {
+    const { start, end } = getMetricsRange();
+
+    return (rows || []).filter((row) => {
+      if (!row?.[dateField]) return false;
+
+      const date = new Date(row[dateField]);
+
+      return date >= start && date <= end;
+    });
+  }
 
   function getMonthKey(date = new Date()) {
     return date.toISOString().slice(0, 7);
@@ -117,6 +172,31 @@ export default function Dashboard() {
 
   const groupedViews = await countRowsByBusiness("views", businessesForMetrics);
   const groupedClicks = await countRowsByBusiness("clicks", businessesForMetrics);
+
+  const businessIds = (businessesForMetrics || []).map((business) => business.id);
+
+  let viewsRowsQuery = supabase
+    .from("views")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10000);
+
+  let clicksRowsQuery = supabase
+    .from("clicks")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10000);
+
+  if (businessIds.length > 0) {
+    viewsRowsQuery = viewsRowsQuery.in("business_id", businessIds);
+    clicksRowsQuery = clicksRowsQuery.in("business_id", businessIds);
+  }
+
+  const { data: rawViewsRows } = await viewsRowsQuery;
+  const { data: rawClicksRows } = await clicksRowsQuery;
+
+  setViewRows(rawViewsRows || []);
+  setClickRows(rawClicksRows || []);
 
   setClicksByBusiness(groupedClicks);
   setVisitsByBusiness({});
@@ -307,6 +387,19 @@ export default function Dashboard() {
 
     return result;
   }
+
+  const filteredViewRows = filterRowsByDate(viewRows);
+  const filteredClickRows = filterRowsByDate(clickRows);
+  const filteredPageViews = filterRowsByDate(pageEvents).filter(
+    (event) => event.event_type === "page_view"
+  );
+
+  const filteredViewsByBusiness = groupByBusiness(filteredViewRows);
+  const filteredClicksByBusiness = groupByBusiness(filteredClickRows);
+
+  const filteredTotalViews = filteredViewRows.length;
+  const filteredTotalClicks = filteredClickRows.length;
+  const peopleToday = filteredPageViews.length;
 
   const totalClicks = Object.values(clicksByBusiness).reduce((a, b) => a + b, 0);
   const totalViews = Object.values(viewsByBusiness).reduce((a, b) => a + b, 0);
@@ -584,16 +677,27 @@ export default function Dashboard() {
             </div>
           )}
 
+          {isAdmin && ["resumen", "metricas"].includes(activeTab) && (
+            <MetricsDateFilter
+              metricsFilter={metricsFilter}
+              setMetricsFilter={setMetricsFilter}
+              metricsStartDate={metricsStartDate}
+              setMetricsStartDate={setMetricsStartDate}
+              metricsEndDate={metricsEndDate}
+              setMetricsEndDate={setMetricsEndDate}
+            />
+          )}
+
           {!isAdmin && (
             <>
               <StatsGrid
                 items={[
                   ["Mis negocios", businesses.length, "bg-white", "text-slate-800"],
-                  ["Vistas", totalViews, "bg-blue-50", "text-blue-700"],
-                  ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
+                  ["Vistas", filteredTotalViews, "bg-blue-50", "text-blue-700"],
+                  ["Clicks WhatsApp", filteredTotalClicks, "bg-green-50", "text-green-700"],
                   [
                     "Conversión",
-                    totalViews ? `${Math.round((totalClicks / totalViews) * 100)}%` : "0%",
+                    filteredTotalViews ? `${Math.round((filteredTotalClicks / filteredTotalViews) * 100)}%` : "0%",
                     "bg-purple-50",
                     "text-purple-700",
                   ],
@@ -630,11 +734,12 @@ export default function Dashboard() {
                 items={[
                   ["Total negocios", allBusinesses.length, "bg-white", "text-slate-800"],
                   ["Usuarios", profiles.length, "bg-blue-50", "text-blue-700"],
-                  ["Vistas vidrieras", totalViews, "bg-blue-50", "text-blue-700"],
-                  ["Clicks WhatsApp", totalClicks, "bg-green-50", "text-green-700"],
+                  ["Personas ingresaron", peopleToday, "bg-cyan-50", "text-cyan-700"],
+                  ["Vistas vidrieras", filteredTotalViews, "bg-blue-50", "text-blue-700"],
+                  ["Clicks WhatsApp", filteredTotalClicks, "bg-green-50", "text-green-700"],
                   [
                     "Conversión",
-                    totalViews ? `${Math.round((totalClicks / totalViews) * 100)}%` : "0%",
+                    filteredTotalViews ? `${Math.round((filteredTotalClicks / filteredTotalViews) * 100)}%` : "0%",
                     "bg-purple-50",
                     "text-purple-700",
                   ],
@@ -918,8 +1023,8 @@ export default function Dashboard() {
           {isAdmin && activeTab === "metricas" && (
             <AdminGrowthMetrics
               allBusinesses={allBusinesses}
-              viewsByBusiness={viewsByBusiness}
-              clicksByBusiness={clicksByBusiness}
+              viewsByBusiness={filteredViewsByBusiness}
+              clicksByBusiness={filteredClicksByBusiness}
               navigate={navigate}
             />
           )}
@@ -1238,6 +1343,62 @@ function FinanceDashboard({
     </div>
   );
 }
+
+
+function MetricsDateFilter({
+  metricsFilter,
+  setMetricsFilter,
+  metricsStartDate,
+  setMetricsStartDate,
+  metricsEndDate,
+  setMetricsEndDate,
+}) {
+  return (
+    <div className="bg-white rounded-2xl shadow p-4 mb-8 flex flex-wrap items-center gap-3">
+      <p className="font-black text-slate-800 mr-2">
+        📅 Filtrar métricas:
+      </p>
+
+      {[
+        ["today", "Hoy"],
+        ["week", "Esta semana"],
+        ["month", "Este mes"],
+        ["custom", "Entre fechas"],
+      ].map(([key, label]) => (
+        <button
+          key={key}
+          onClick={() => setMetricsFilter(key)}
+          className={`px-4 py-2 rounded-xl font-bold ${
+            metricsFilter === key
+              ? "bg-slate-900 text-white"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+
+      {metricsFilter === "custom" && (
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="date"
+            value={metricsStartDate}
+            onChange={(e) => setMetricsStartDate(e.target.value)}
+            className="border rounded-xl px-3 py-2"
+          />
+
+          <input
+            type="date"
+            value={metricsEndDate}
+            onChange={(e) => setMetricsEndDate(e.target.value)}
+            className="border rounded-xl px-3 py-2"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function UpgradePlanCTA({ businesses, navigate }) {
   const upgradableBusinesses = businesses.filter(
