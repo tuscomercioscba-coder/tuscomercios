@@ -21,6 +21,11 @@ export default function Dashboard() {
 
   const [clickRows, setClickRows] = useState([]);
   const [viewRows, setViewRows] = useState([]);
+  const [filteredTotalViewsExact, setFilteredTotalViewsExact] = useState(0);
+  const [filteredTotalClicksExact, setFilteredTotalClicksExact] = useState(0);
+  const [filteredViewsByBusinessExact, setFilteredViewsByBusinessExact] = useState({});
+  const [filteredClicksByBusinessExact, setFilteredClicksByBusinessExact] = useState({});
+  const [peopleEnteredExact, setPeopleEnteredExact] = useState(0);
   const [clicksByBusiness, setClicksByBusiness] = useState({});
   const [visitsByBusiness, setVisitsByBusiness] = useState({});
   const [viewsByBusiness, setViewsByBusiness] = useState({});
@@ -116,6 +121,17 @@ export default function Dashboard() {
       loadFinanceData();
     }
   }, [financeFilter, financeStartDate, financeEndDate, isAdmin]);
+
+  useEffect(() => {
+    loadExactFilteredMetrics();
+  }, [
+    metricsFilter,
+    metricsStartDate,
+    metricsEndDate,
+    businesses,
+    allBusinesses,
+    isAdmin,
+  ]);
 
   async function getData() {
   setLoading(true);
@@ -248,6 +264,78 @@ export default function Dashboard() {
 
   setLoading(false);
 }
+
+
+  async function countRowsExact(tableName, businessList) {
+    const range = getMetricsRange();
+    const businessIds = (businessList || []).map((business) => business.id);
+
+    if (businessIds.length === 0) {
+      return {
+        total: 0,
+        byBusiness: {},
+      };
+    }
+
+    const { count: totalCount, error: totalError } = await supabase
+      .from(tableName)
+      .select("id", { count: "exact", head: true })
+      .in("business_id", businessIds)
+      .gte("created_at", range.start.toISOString())
+      .lte("created_at", range.end.toISOString());
+
+    if (totalError) {
+      console.log(`Error contando ${tableName}:`, totalError);
+    }
+
+    const byBusiness = {};
+
+    await Promise.all(
+      businessIds.map(async (businessId) => {
+        const { count, error } = await supabase
+          .from(tableName)
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId)
+          .gte("created_at", range.start.toISOString())
+          .lte("created_at", range.end.toISOString());
+
+        if (error) {
+          console.log(`Error contando ${tableName} por negocio:`, error);
+          byBusiness[businessId] = 0;
+        } else {
+          byBusiness[businessId] = count || 0;
+        }
+      })
+    );
+
+    return {
+      total: totalCount || 0,
+      byBusiness,
+    };
+  }
+
+  async function loadExactFilteredMetrics() {
+    const businessList = isAdmin ? allBusinesses : businesses;
+
+    const viewsResult = await countRowsExact("views", businessList);
+    const clicksResult = await countRowsExact("clicks", businessList);
+
+    setFilteredTotalViewsExact(viewsResult.total);
+    setFilteredTotalClicksExact(clicksResult.total);
+    setFilteredViewsByBusinessExact(viewsResult.byBusiness);
+    setFilteredClicksByBusinessExact(clicksResult.byBusiness);
+
+    const range = getMetricsRange();
+
+    const { count: peopleCount } = await supabase
+      .from("page_events")
+      .select("id", { count: "exact", head: true })
+      .eq("event_type", "page_view")
+      .gte("created_at", range.start.toISOString())
+      .lte("created_at", range.end.toISOString());
+
+    setPeopleEnteredExact(peopleCount || 0);
+  }
 
   async function loadFinanceData() {
     const range = getFinanceRange();
@@ -388,18 +476,12 @@ export default function Dashboard() {
     return result;
   }
 
-  const filteredViewRows = filterRowsByDate(viewRows);
-  const filteredClickRows = filterRowsByDate(clickRows);
-  const filteredPageViews = filterRowsByDate(pageEvents).filter(
-    (event) => event.event_type === "page_view"
-  );
+  const filteredViewsByBusiness = filteredViewsByBusinessExact;
+  const filteredClicksByBusiness = filteredClicksByBusinessExact;
 
-  const filteredViewsByBusiness = groupByBusiness(filteredViewRows);
-  const filteredClicksByBusiness = groupByBusiness(filteredClickRows);
-
-  const filteredTotalViews = filteredViewRows.length;
-  const filteredTotalClicks = filteredClickRows.length;
-  const peopleToday = filteredPageViews.length;
+  const filteredTotalViews = filteredTotalViewsExact;
+  const filteredTotalClicks = filteredTotalClicksExact;
+  const peopleToday = peopleEnteredExact;
 
   const totalClicks = Object.values(clicksByBusiness).reduce((a, b) => a + b, 0);
   const totalViews = Object.values(viewsByBusiness).reduce((a, b) => a + b, 0);
