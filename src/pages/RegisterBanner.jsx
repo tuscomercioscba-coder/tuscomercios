@@ -15,6 +15,18 @@ export default function RegisterBanner() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (!imageFile) {
+      setPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(imageFile);
+    setPreview(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   async function loadData() {
     const {
       data: { user },
@@ -34,7 +46,9 @@ export default function RegisterBanner() {
     const admin = profile?.role === "admin";
     setIsAdmin(admin);
 
-    let query = supabase.from("businesses").select("*");
+    let query = supabase
+      .from("businesses")
+      .select("id, negocio, ciudad, provincia, plan, user_id");
 
     if (!admin) {
       query = query.eq("user_id", user.id);
@@ -53,20 +67,82 @@ export default function RegisterBanner() {
 
   function handleImage(file) {
     if (!file) return;
-
     setImageFile(file);
-    setPreview(URL.createObjectURL(file));
+  }
+
+  async function optimizeImage(file) {
+    if (!file?.type?.startsWith("image/")) {
+      return file;
+    }
+
+    try {
+      const imageUrl = URL.createObjectURL(file);
+
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = imageUrl;
+      });
+
+      const maxWidth = 1600;
+      const maxHeight = 900;
+
+      let width = img.width;
+      let height = img.height;
+
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      URL.revokeObjectURL(imageUrl);
+
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, "image/jpeg", 0.78);
+      });
+
+      if (!blob) return file;
+
+      const originalName = file.name
+        .replace(/\.[^/.]+$/, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+
+      return new File([blob], `${originalName || "banner"}-optimizado.jpg`, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    } catch (error) {
+      console.log("No se pudo optimizar el banner:", error);
+      return file;
+    }
   }
 
   async function uploadImage(file) {
-    const cleanName = file.name.replace(/\s+/g, "-");
+    const optimizedFile = await optimizeImage(file);
+
+    const cleanName = optimizedFile.name
+      .replace(/\s+/g, "-")
+      .replace(/[^\w.-]/g, "")
+      .toLowerCase();
+
     const fileName = `banner-${Date.now()}-${cleanName}`;
 
     const { error } = await supabase.storage
       .from("business-images")
-      .upload(fileName, file, {
-        cacheControl: "3600",
+      .upload(fileName, optimizedFile, {
+        cacheControl: "31536000",
         upsert: true,
+        contentType: optimizedFile.type || "image/jpeg",
       });
 
     if (error) throw error;
@@ -244,18 +320,14 @@ export default function RegisterBanner() {
               <input
                 placeholder="Título del banner"
                 value={form.title}
-                onChange={(e) =>
-                  setForm({ ...form, title: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="input"
               />
 
               <input
                 placeholder="Subtítulo del banner"
                 value={form.subtitle}
-                onChange={(e) =>
-                  setForm({ ...form, subtitle: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
                 className="input"
               />
 
@@ -265,15 +337,22 @@ export default function RegisterBanner() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleImage(e.target.files[0])}
+                  onChange={(e) => handleImage(e.target.files?.[0])}
                 />
+
+                <p className="text-xs text-gray-500 mt-1">
+                  La imagen se optimiza automáticamente antes de subir.
+                </p>
               </div>
 
               {preview && (
-                <div className="rounded-3xl overflow-hidden shadow-xl relative">
+                <div className="rounded-3xl overflow-hidden shadow-xl relative bg-slate-100">
                   <img
                     src={preview}
                     className="w-full h-72 object-cover"
+                    alt="Vista previa del banner"
+                    loading="lazy"
+                    decoding="async"
                   />
 
                   <div className="absolute inset-0 bg-black/50"></div>

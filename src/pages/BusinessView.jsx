@@ -462,6 +462,9 @@ export default function BusinessView() {
                   <img
                     src={currentImage}
                     alt={business.negocio}
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                     onError={(e) => {
                       e.target.src =
                         "https://placehold.co/400x400?text=Tus+Comercios";
@@ -624,6 +627,8 @@ export default function BusinessView() {
                     <img
                       src={currentImage}
                       alt={business.negocio}
+                      loading="lazy"
+                      decoding="async"
                       onError={(e) => {
                         e.target.src =
                           "https://placehold.co/800x500?text=Sin+Imagen";
@@ -686,6 +691,8 @@ export default function BusinessView() {
                         <img
                           src={img}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             e.target.style.display = "none";
                           }}

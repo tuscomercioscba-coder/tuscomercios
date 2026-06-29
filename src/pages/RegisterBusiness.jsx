@@ -526,15 +526,95 @@ export default function RegisterBusiness() {
     );
   }
 
+
+  async function optimizeImage(file) {
+    if (!file?.type?.startsWith("image/")) {
+      return file;
+    }
+
+    try {
+      const imageUrl = URL.createObjectURL(file);
+
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = imageUrl;
+      });
+
+      const maxSize = 1600;
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height && width > maxSize) {
+        height = Math.round((height * maxSize) / width);
+        width = maxSize;
+      } else if (height >= width && height > maxSize) {
+        width = Math.round((width * maxSize) / height);
+        height = maxSize;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      URL.revokeObjectURL(imageUrl);
+
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob(
+          resolve,
+          "image/jpeg",
+          0.78
+        );
+      });
+
+      if (!blob) {
+        return file;
+      }
+
+      const originalName = file.name
+        .replace(/\.[^/.]+$/, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+
+      return new File(
+        [blob],
+        `${originalName || "imagen"}-optimizada.jpg`,
+        {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        }
+      );
+    } catch (error) {
+      console.log("No se pudo optimizar la imagen, se sube original:", error);
+      return file;
+    }
+  }
+
   const uploadFile = async (file, folder = "business-images") => {
-    const cleanName = file.name.replace(/\s+/g, "-");
+    const fileToUpload = file?.type?.startsWith("image/")
+      ? await optimizeImage(file)
+      : file;
+
+    const cleanName = fileToUpload.name
+      .replace(/\s+/g, "-")
+      .replace(/[^\w.-]/g, "")
+      .toLowerCase();
+
     const fileName = `${Date.now()}-${cleanName}`;
 
     const { error } = await supabase.storage
       .from(folder)
-      .upload(fileName, file, {
-        cacheControl: "3600",
+      .upload(fileName, fileToUpload, {
+        cacheControl: "31536000",
         upsert: true,
+        contentType: fileToUpload.type || "application/octet-stream",
       });
 
     if (error) {
@@ -1125,6 +1205,8 @@ export default function RegisterBusiness() {
                 >
                   <img
                     src={img}
+                    loading="lazy"
+                    decoding="async"
                     className="w-28 h-28 object-contain bg-gray-100"
                   />
 
@@ -1186,6 +1268,8 @@ export default function RegisterBusiness() {
                 previewImages[0] ||
                 "https://placehold.co/600x400?text=Sin+imagen"
               }
+              loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.target.src =
                   "https://placehold.co/600x400?text=Error+imagen";

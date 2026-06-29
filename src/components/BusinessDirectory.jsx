@@ -17,6 +17,8 @@ export default function BusinessDirectory() {
   };
 
   useEffect(() => {
+    if (!navigator.geolocation) return;
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation({
@@ -26,6 +28,11 @@ export default function BusinessDirectory() {
       },
       (error) => {
         console.log(error);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 1000 * 60 * 30,
       }
     );
   }, []);
@@ -94,7 +101,22 @@ export default function BusinessDirectory() {
   async function fetchBusinesses() {
     const { data, error } = await supabase
       .from("businesses")
-      .select("*")
+      .select(`
+        id,
+        slug,
+        negocio,
+        rubro,
+        descripcion,
+        ciudad,
+        provincia,
+        whatsapp,
+        image,
+        plan,
+        status,
+        lat,
+        lng,
+        keywords
+      `)
       .eq("status", "published");
 
     if (error) {
@@ -107,6 +129,12 @@ export default function BusinessDirectory() {
 
   async function registerVisit(businessId) {
     if (!businessId) return;
+
+    const sessionKey = `tc_visit_${businessId}`;
+
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    sessionStorage.setItem(sessionKey, "true");
 
     const { error } = await supabase.from("visits").insert([
       {
@@ -127,32 +155,6 @@ export default function BusinessDirectory() {
     ]);
 
     if (error) console.log("Error guardando click:", error);
-  }
-
-  async function registerCardViews(items) {
-    if (!items || items.length === 0) return;
-
-    const rows = [];
-
-    items.forEach((b) => {
-      if (!b?.id) return;
-
-      const key = `tc_view_${b.id}`;
-
-      if (sessionStorage.getItem(key)) return;
-
-      sessionStorage.setItem(key, "true");
-
-      rows.push({
-        business_id: b.id,
-      });
-    });
-
-    if (rows.length === 0) return;
-
-    const { error } = await supabase.from("views").insert(rows);
-
-    if (error) console.log("Error guardando views:", error);
   }
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -251,10 +253,6 @@ export default function BusinessDirectory() {
       });
   }, [businesses, search, city, userLocation]);
 
-  useEffect(() => {
-    registerCardViews(filtered);
-  }, [filtered]);
-
   async function goToBusiness(b) {
     await registerVisit(b.id);
     navigate(`/${b.slug}`);
@@ -270,7 +268,7 @@ export default function BusinessDirectory() {
         )}
 
         <div className="flex flex-col gap-6">
-          {filtered.map((b) => {
+          {filtered.map((b, i) => {
             const message = encodeURIComponent(
               `Hola ${b.negocio}, vi tu negocio en Tus Comercios`
             );
@@ -304,6 +302,12 @@ export default function BusinessDirectory() {
                     src={b.image || "/no-image.jpg"}
                     className="w-full h-full object-cover"
                     alt={b.negocio}
+                    loading={i < 3 ? "eager" : "lazy"}
+                    fetchPriority={i < 3 ? "high" : "auto"}
+                    decoding="async"
+                    onError={(e) => {
+                      e.currentTarget.src = "/no-image.jpg";
+                    }}
                   />
                 </div>
 

@@ -42,6 +42,11 @@ export default function Banners() {
         },
         () => {
           resolve(null);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 1000 * 60 * 30,
         }
       );
     });
@@ -57,7 +62,18 @@ export default function Banners() {
     const { data, error } = await supabase
       .from("banners")
       .select(`
-        *,
+        id,
+        title,
+        subtitle,
+        image,
+        lat,
+        lng,
+        radius_km,
+        priority,
+        clicks,
+        expires_at,
+        active,
+        created_at,
         businesses (
           id,
           negocio,
@@ -68,7 +84,8 @@ export default function Banners() {
       `)
       .eq("active", true)
       .order("priority", { ascending: false })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(10);
 
     if (error) {
       console.log(error);
@@ -127,11 +144,11 @@ export default function Banners() {
   }
 
   useEffect(() => {
-    if (banners.length === 0) return;
+    if (banners.length <= 1) return;
 
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % banners.length);
-    }, 4000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [banners]);
@@ -183,19 +200,24 @@ export default function Banners() {
     );
   }
 
-  const current = banners[index];
+  const current = banners[index] || banners[0];
 
   return (
     <section className="w-full py-10">
       <div className="max-w-6xl mx-auto px-4">
         <div
           onClick={() => goToBusiness(current)}
-          className="relative rounded-3xl overflow-hidden shadow-2xl cursor-pointer group"
+          className="relative rounded-3xl overflow-hidden shadow-2xl cursor-pointer group bg-slate-200"
         >
           <img
             src={current.image}
             alt={current.title || "Banner destacado"}
+            loading="lazy"
+            decoding="async"
             className="w-full h-[300px] md:h-[420px] object-cover group-hover:scale-105 transition duration-500"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
 
           <div className="absolute inset-0 bg-black/45"></div>
@@ -209,9 +231,11 @@ export default function Banners() {
               {current.title}
             </h2>
 
-            <p className="mt-4 text-lg text-gray-100 max-w-xl">
-              {current.subtitle}
-            </p>
+            {current.subtitle && (
+              <p className="mt-4 text-lg text-gray-100 max-w-xl">
+                {current.subtitle}
+              </p>
+            )}
 
             <button
               onClick={(e) => {
