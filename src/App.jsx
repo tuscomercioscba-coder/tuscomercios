@@ -13,6 +13,7 @@ import CategoryPage from "./pages/CategoryPage";
 import BusinessView from "./pages/BusinessView";
 import RegisterBanner from "./pages/RegisterBanner";
 import EditBanner from "./pages/EditBanner";
+import ReelGenerator from "./pages/ReelGenerator";
 
 import Auth from "./components/Auth";
 import Register from "./pages/Register";
@@ -35,25 +36,18 @@ function Home() {
           content="Encontrá comercios, negocios, servicios y empresas de toda Argentina."
         />
 
-        <meta
-          property="og:title"
-          content="Tus Comercios"
-        />
+        <meta property="og:title" content="Tus Comercios" />
 
         <meta
           property="og:description"
           content="La nueva plataforma de comercios de Argentina."
         />
 
-        <meta
-          property="og:url"
-          content="https://tuscomercios.com.ar"
-        />
+        <meta property="og:url" content="https://tuscomercios.com.ar" />
       </Helmet>
 
       <div className="min-h-screen bg-white text-slate-900">
         <Header />
-
         <Banners />
 
         <main>
@@ -76,82 +70,43 @@ function AnalyticsTracker() {
         let businessCity = "";
 
         if (location.pathname.includes("/categoria/")) {
-          const parts =
-            location.pathname.split("/");
-
-          businessCity =
-            decodeURIComponent(
-              parts[3] || ""
-            );
+          const parts = location.pathname.split("/");
+          businessCity = decodeURIComponent(parts[3] || "");
         }
 
-        await supabase
-          .from("page_events")
-          .insert([
-            {
-              event_type:
-                "page_view",
-
-              path:
-                location.pathname,
-
-              business_city:
-                businessCity,
-            },
-          ]);
-
+        await supabase.from("page_events").insert([
+          {
+            event_type: "page_view",
+            path: location.pathname,
+            business_city: businessCity,
+          },
+        ]);
       } catch (error) {
         console.log(error);
       }
     }
 
     registerPageView();
-
   }, [location.pathname]);
 
   useEffect(() => {
+    const handleSearch = async (e) => {
+      try {
+        await supabase.from("page_events").insert([
+          {
+            event_type: "search",
+            path: window.location.pathname,
+            search: e.detail?.search || "",
+            city: e.detail?.city || "",
+            business_city: e.detail?.city || "",
+          },
+        ]);
+      } catch {}
+    };
 
-    const handleSearch =
-      async (e) => {
+    window.addEventListener("search", handleSearch);
 
-        try {
-
-          await supabase
-            .from("page_events")
-            .insert([
-              {
-                event_type:
-                  "search",
-
-                path:
-                  window.location.pathname,
-
-                search:
-                  e.detail?.search || "",
-
-                city:
-                  e.detail?.city || "",
-
-                business_city:
-                  e.detail?.city || "",
-              },
-            ]);
-
-        } catch {}
-
-      };
-
-    window.addEventListener(
-      "search",
-      handleSearch
-    );
-
-    return () =>
-      window.removeEventListener(
-        "search",
-        handleSearch
-      );
-
+    return () => window.removeEventListener("search", handleSearch);
   }, []);
 
   return null;
@@ -163,67 +118,19 @@ export default function App() {
       <AnalyticsTracker />
 
       <Routes>
-
-        <Route
-          path="/"
-          element={<Home />}
-        />
-
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        <Route
-          path="/login"
-          element={<Auth />}
-        />
-
-        <Route
-          path="/planes"
-          element={<PlansPage />}
-        />
-
-        <Route
-          path="/register-business"
-          element={<RegisterBusiness />}
-        />
-
-        <Route
-          path="/editar/:id"
-          element={<RegisterBusiness />}
-        />
-
-        <Route
-          path="/crear-banner"
-          element={<RegisterBanner />}
-        />
-
-        <Route
-          path="/editar-banner/:id"
-          element={<EditBanner />}
-        />
-
-        <Route
-          path="/dashboard"
-          element={<Dashboard />}
-        />
-
-        <Route
-          path="/success"
-          element={<Success />}
-        />
-
-        <Route
-          path="/categoria/:rubro/:ciudad"
-          element={<CategoryPage />}
-        />
-
-        <Route
-          path="/:slug"
-          element={<BusinessView />}
-        />
-
+        <Route path="/" element={<Home />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/planes" element={<PlansPage />} />
+        <Route path="/register-business" element={<RegisterBusiness />} />
+        <Route path="/editar/:id" element={<RegisterBusiness />} />
+        <Route path="/crear-banner" element={<RegisterBanner />} />
+        <Route path="/editar-banner/:id" element={<EditBanner />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/success" element={<Success />} />
+        <Route path="/generar-reel/:id" element={<ReelGenerator />} />
+        <Route path="/categoria/:rubro/:ciudad" element={<CategoryPage />} />
+        <Route path="/:slug" element={<BusinessView />} />
       </Routes>
     </>
   );

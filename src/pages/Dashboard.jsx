@@ -2092,6 +2092,16 @@ function BusinessCards({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    navigate(`/generar-reel/${b.id}`);
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-xl font-black hover:from-purple-700 hover:to-blue-700 transition"
+                >
+                  🚀 Crear contenido para redes
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     navigate(`/editar/${b.id}`);
                   }}
                   className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm hover:bg-blue-700"
