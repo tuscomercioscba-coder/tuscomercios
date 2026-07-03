@@ -698,6 +698,13 @@ export default function Dashboard() {
             </div>
 
             <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={() => navigate("/studio")}
+                  className="bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-black transition font-bold"
+               >
+                  🎨 TusComercios Studio
+               </button>
+               
               {isAdmin && (
                 <button
                   onClick={() => navigate("/register-business?admin=true")}

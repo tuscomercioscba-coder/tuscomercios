@@ -11,6 +11,8 @@ import Banners from "./components/Banners";
 
 import CategoryPage from "./pages/CategoryPage";
 import BusinessView from "./pages/BusinessView";
+import Studio from "./pages/Studio";
+import StudioImage from "./pages/StudioImage";
 import RegisterBanner from "./pages/RegisterBanner";
 import EditBanner from "./pages/EditBanner";
 import ReelGenerator from "./pages/ReelGenerator";
@@ -124,6 +126,8 @@ export default function App() {
         <Route path="/planes" element={<PlansPage />} />
         <Route path="/register-business" element={<RegisterBusiness />} />
         <Route path="/editar/:id" element={<RegisterBusiness />} />
+        <Route path="/studio" element={<Studio />} />
+        <Route path="/studio/imagen/:id" element={<StudioImage />} />
         <Route path="/crear-banner" element={<RegisterBanner />} />
         <Route path="/editar-banner/:id" element={<EditBanner />} />
         <Route path="/dashboard" element={<Dashboard />} />
