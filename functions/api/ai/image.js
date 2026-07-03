@@ -3,34 +3,28 @@ import { generateImage } from "./provider.js";
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function onRequestGet() {
+  return json({
+    ok: true,
+    message: "API de imagen funcionando",
   });
 }
 
 export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
-
     const prompt = String(body.prompt || "").trim();
 
-    if (!prompt) {
-      return json({ error: "Falta el prompt" }, 400);
-    }
-
-    if (prompt.length > 4000) {
-      return json({ error: "El prompt es demasiado largo" }, 400);
-    }
+    if (!prompt) return json({ error: "Falta el prompt" }, 400);
 
     const result = await generateImage({
       env: context.env,
       prompt,
     });
-
-    if (!result.imageBase64) {
-      return json({ error: "OpenAI no devolvió imagen" }, 500);
-    }
 
     return json({
       ok: true,
@@ -39,8 +33,6 @@ export async function onRequestPost(context) {
       model: result.model,
     });
   } catch (error) {
-    console.error("AI IMAGE ERROR:", error);
-
     return json(
       {
         ok: false,
