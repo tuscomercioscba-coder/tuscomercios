@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import Layout from "../components/Layout";
+import { buildImagePrompt } from "../services/ai/imageDirector";
 
 export default function StudioImage() {
   const { id } = useParams();
@@ -13,7 +14,7 @@ export default function StudioImage() {
   const [generating, setGenerating] = useState(false);
   const [type, setType] = useState("promo");
   const [prompt, setPrompt] = useState("");
-  const [generated, setGenerated] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState("");
 
   useEffect(() => {
     loadBusiness();
@@ -59,8 +60,36 @@ export default function StudioImage() {
 
     try {
       setGenerating(true);
+      setGeneratedImage("");
 
-      const { error } = await supabase.from("studio_usage").insert([
+      const finalPrompt = buildImagePrompt({
+        business,
+        idea: `${type}: ${prompt}`,
+        style: "profesional, moderno y comercial",
+      });
+
+      const response = await fetch("/api/ai/image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: finalPrompt,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        console.error(result);
+        alert(result.error || "No se pudo generar la imagen.");
+        return;
+      }
+
+      const imageUrl = `data:image/png;base64,${result.imageBase64}`;
+      setGeneratedImage(imageUrl);
+
+      await supabase.from("studio_usage").insert([
         {
           user_id: userId,
           business_id: business.id,
@@ -68,18 +97,21 @@ export default function StudioImage() {
           plan: business.plan || "standard",
         },
       ]);
-
-      if (error) {
-        console.error(error);
-        alert("No se pudo registrar el uso.");
-        return;
-      }
-
-      setGenerated(true);
-      alert("Imagen registrada correctamente. Próximo paso: conectar IA.");
+    } catch (error) {
+      console.error(error);
+      alert("Error generando imagen.");
     } finally {
       setGenerating(false);
     }
+  }
+
+  function downloadImage() {
+    if (!generatedImage) return;
+
+    const link = document.createElement("a");
+    link.href = generatedImage;
+    link.download = `${business.negocio}-tuscomercios-studio.png`;
+    link.click();
   }
 
   if (loading) {
@@ -141,7 +173,7 @@ export default function StudioImage() {
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Ejemplo: Crear una imagen promocional para vender combos de Netflix, Disney y HBO, moderna, llamativa, con estilo profesional..."
+                placeholder="Ejemplo: Quiero vender combos de Netflix, Disney y HBO con una imagen moderna y profesional."
                 className="w-full h-40 border rounded-2xl p-4 outline-none"
               />
 
@@ -150,47 +182,58 @@ export default function StudioImage() {
                 disabled={generating || !prompt.trim()}
                 className="mt-4 w-full bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-700 transition disabled:opacity-50"
               >
-                {generating ? "Registrando..." : "Generar imagen"}
+                {generating ? "Generando imagen..." : "Generar imagen"}
               </button>
 
-              {generated && (
-                <div className="mt-4 bg-green-50 border border-green-200 text-green-700 p-4 rounded-2xl font-bold">
-                  ✅ Imagen registrada. El contador del Studio ya debería sumar 1.
-                </div>
+              {generatedImage && (
+                <button
+                  onClick={downloadImage}
+                  className="mt-3 w-full bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-black transition"
+                >
+                  ⬇ Descargar imagen
+                </button>
               )}
             </div>
 
             <div className="bg-white rounded-3xl shadow p-6">
-              <h2 className="text-2xl font-black mb-4">Vista previa</h2>
+              <h2 className="text-2xl font-black mb-4">Resultado</h2>
 
-              <div className="aspect-[9/16] bg-gradient-to-br from-slate-900 to-blue-700 rounded-3xl p-6 text-white flex flex-col justify-between">
-                <div>
-                  <p className="text-sm bg-white/20 inline-block px-3 py-1 rounded-full font-bold">
-                    TusComercios Studio
-                  </p>
+              {generatedImage ? (
+                <img
+                  src={generatedImage}
+                  alt="Imagen generada por TusComercios Studio"
+                  className="w-full rounded-3xl shadow object-cover"
+                />
+              ) : (
+                <div className="aspect-square bg-gradient-to-br from-slate-900 to-blue-700 rounded-3xl p-6 text-white flex flex-col justify-between">
+                  <div>
+                    <p className="text-sm bg-white/20 inline-block px-3 py-1 rounded-full font-bold">
+                      TusComercios Studio
+                    </p>
 
-                  <h3 className="text-4xl font-black mt-6">
-                    {business.negocio}
-                  </h3>
+                    <h3 className="text-4xl font-black mt-6">
+                      {business.negocio}
+                    </h3>
 
-                  <p className="text-blue-100 mt-2">
-                    {business.rubro} · {business.ciudad}
+                    <p className="text-blue-100 mt-2">
+                      {business.rubro} · {business.ciudad}
+                    </p>
+                  </div>
+
+                  <div className="bg-white/15 rounded-2xl p-4">
+                    <p className="font-bold">Tipo: {type}</p>
+
+                    <p className="text-sm text-blue-100 mt-2">
+                      {prompt ||
+                        "Tu idea aparecerá acá como base para generar la imagen."}
+                    </p>
+                  </div>
+
+                  <p className="text-sm text-blue-100">
+                    www.tuscomercios.com.ar
                   </p>
                 </div>
-
-                <div className="bg-white/15 rounded-2xl p-4">
-                  <p className="font-bold">Tipo: {type}</p>
-
-                  <p className="text-sm text-blue-100 mt-2">
-                    {prompt ||
-                      "Tu idea aparecerá acá como base para generar la imagen."}
-                  </p>
-                </div>
-
-                <p className="text-sm text-blue-100">
-                  www.tuscomercios.com.ar
-                </p>
-              </div>
+              )}
             </div>
           </div>
         </div>
