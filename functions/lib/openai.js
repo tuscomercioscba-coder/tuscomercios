@@ -12,7 +12,8 @@ export async function generateOpenAIImage({ apiKey, prompt }) {
       model: "gpt-image-1",
       prompt,
       size: "1024x1024",
-      quality: "medium",
+      quality: "high",
+      output_format: "png",
     }),
   });
 
