@@ -81,6 +81,8 @@ export default function StudioImage() {
   const [safeMargin, setSafeMargin] = useState(80);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
+  const [creationTool, setCreationTool] = useState("quick");
+  const [selectionTool, setSelectionTool] = useState("properties");
 
   const {
     state: project,
@@ -820,7 +822,7 @@ export default function StudioImage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-100 pb-28">
+      <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 pb-28">
         <div className="mx-auto max-w-[1850px] p-3 sm:p-4 md:p-6">
           <header className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-900 p-5 text-white shadow-2xl md:p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -864,52 +866,112 @@ export default function StudioImage() {
             </div>
           </header>
 
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              Herramientas
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {[
+                ["quick", "Crear"],
+                ["brand", "Marca"],
+                ["background", "Fondo"],
+                ["elements", "Elementos"],
+                ["safe", "Zona segura"],
+                ["project", "Proyecto"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCreationTool(value)}
+                  className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-black ${
+                    creationTool === value
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              {[
+                ["properties", "Propiedades"],
+                ["position", "Posición"],
+                ["images", "Imágenes"],
+                ["layers", "Capas"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSelectionTool(value)}
+                  className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-black ${
+                    selectionTool === value
+                      ? "bg-violet-600 text-white"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)_310px]">
-            <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-2">
-              <BrandKitQuickPanel
-                brandKit={brandKit}
-                onApply={applyBrandKitToCurrentProject}
-                onAddLogo={addLogo}
-              />
+            <aside className="order-1 min-w-0 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-2">
+              {creationTool === "brand" && (
+                <BrandKitQuickPanel
+                  brandKit={brandKit}
+                  onApply={applyBrandKitToCurrentProject}
+                  onAddLogo={addLogo}
+                />
+              )}
 
-              <QuickPanel
-                format={format}
-                onFormat={changeFormat}
-                onMainImage={uploadMainImage}
-                onAddText={addText}
-                onAddImage={addImage}
-                onAddLogo={addLogo}
-                onAddShape={addShape}
-                onApplyTemplate={applyTemplate}
-              />
+              {creationTool === "quick" && (
+                <QuickPanel
+                  format={format}
+                  onFormat={changeFormat}
+                  onMainImage={uploadMainImage}
+                  onAddText={addText}
+                  onAddImage={addImage}
+                  onAddLogo={addLogo}
+                  onAddShape={addShape}
+                  onApplyTemplate={applyTemplate}
+                />
+              )}
 
-              <BackgroundPanel
-                background={project.background}
-                onChange={(background) =>
-                  setProject((current) => ({
-                    ...current,
-                    background,
-                  }))
-                }
-              />
+              {creationTool === "background" && (
+                <BackgroundPanel
+                  background={project.background}
+                  onChange={(background) =>
+                    setProject((current) => ({
+                      ...current,
+                      background,
+                    }))
+                  }
+                />
+              )}
 
-              <ElementsLibraryPanel onAddIcon={addIcon} onAddSticker={addSticker} onAddLine={addLine} />
+              {creationTool === "elements" && (
+                <ElementsLibraryPanel onAddIcon={addIcon} onAddSticker={addSticker} onAddLine={addLine} />
+              )}
 
-              <SafeAreaPanel visible={showSafeMargins} margin={safeMargin} onVisible={setShowSafeMargins} onMargin={setSafeMargin} />
+              {creationTool === "safe" && (
+                <SafeAreaPanel visible={showSafeMargins} margin={safeMargin} onVisible={setShowSafeMargins} onMargin={setSafeMargin} />
+              )}
 
-              <ProjectPanel
-                onSaveProject={() =>
-                  downloadProjectFile(
-                    project,
-                    `${business.negocio || "proyecto"}-studio.json`
-                  )
-                }
-                onLoadProject={loadProject}
-                exportScale={exportScale}
-                onExportScale={setExportScale}
-                exportFormat={exportFormat}
-                onExportFormat={setExportFormat}
-              />
+              {creationTool === "project" && (
+                <ProjectPanel
+                  onSaveProject={() =>
+                    downloadProjectFile(
+                      project,
+                      `${business.negocio || "proyecto"}-studio.json`
+                    )
+                  }
+                  onLoadProject={loadProject}
+                  exportScale={exportScale}
+                  onExportScale={setExportScale}
+                  exportFormat={exportFormat}
+                  onExportFormat={setExportFormat}
+                />
+              )}
 
               <button
                 onClick={exportDesign}
@@ -920,7 +982,7 @@ export default function StudioImage() {
               </button>
             </aside>
 
-            <main className="min-w-0 xl:sticky xl:top-4">
+            <main className="order-2 min-w-0 xl:sticky xl:top-4">
               <Toolbar
                 zoom={zoom}
                 hasSelection={Boolean(selectedId)}
@@ -997,8 +1059,8 @@ export default function StudioImage() {
               </section>
             </main>
 
-            <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pl-2">
-              <PropertiesPanel
+            <aside className="order-1 min-w-0 space-y-4 xl:order-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pl-2">
+              {selectionTool === "properties" && <PropertiesPanel
                 element={selectedElement}
                 editingImage={editingImageId === selectedId}
                 onChange={updateSelected}
@@ -1007,14 +1069,14 @@ export default function StudioImage() {
                   if (selectedIsImage) setEditingImageId(selectedId);
                 }}
                 onFinishImageEdit={() => setEditingImageId("")}
-              />
+              />}
 
-              <PositionPanel
+              {selectionTool === "position" && <PositionPanel
                 disabled={!selectedElement}
                 onPosition={positionSelected}
-              />
+              />}
 
-              {selectedIsImage && (
+              {selectionTool === "images" && selectedIsImage && (
                 <ImageLibraryPanel
                   images={availableImages}
                   selectedId={selectedId}
@@ -1032,7 +1094,7 @@ export default function StudioImage() {
                 />
               )}
 
-              {mode === "professional" && (
+              {selectionTool === "layers" && mode === "professional" && (
                 <LayersPanel
                   elements={project.elements}
                   selectedId={selectedId}

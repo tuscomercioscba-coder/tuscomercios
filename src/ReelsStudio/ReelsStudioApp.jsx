@@ -165,6 +165,7 @@ export default function ReelsStudioApp({
   const [mediaItems, setMediaItems] = useState([]);
   const [selectedMediaId, setSelectedMediaId] = useState("");
   const [loadingMedia, setLoadingMedia] = useState(false);
+  const [activeTool, setActiveTool] = useState("media");
 
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeArea, setShowSafeArea] = useState(false);
@@ -1459,7 +1460,7 @@ export default function ReelsStudioApp({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-24">
+    <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 pb-24">
       <div className="mx-auto max-w-[1800px] p-3 sm:p-4 md:p-6">
         <ProjectRelinkPanel
           pendingProject={pendingProject}
@@ -1521,10 +1522,7 @@ export default function ReelsStudioApp({
                 type="button"
                 disabled={!project.clips.length}
                 onClick={() =>
-                  exportSectionRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  })
+                  setActiveTool("export")
                 }
                 className="min-h-12 rounded-xl bg-emerald-500 px-4 font-black text-slate-950 disabled:opacity-40"
               >
@@ -1611,34 +1609,55 @@ export default function ReelsStudioApp({
             onAddText={() => addLayer(LAYER_TYPES.TEXT)}
             onAddSubtitle={() => addLayer(LAYER_TYPES.SUBTITLE)}
             onOpenRecorder={() =>
-              recorderSectionRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              })
+              setActiveTool("recorder")
             }
             onOpenAudio={() =>
-              audioSectionRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              })
+              setActiveTool("audio")
             }
             onOpenVoiceAudio={() =>
-              voiceAudioSectionRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              })
+              setActiveTool("voice")
             }
             onOpenStickers={() =>
-              stickerSectionRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              })
+              setActiveTool("stickers")
             }
           />
         </div>
 
+        <div className="sticky top-0 z-40 mt-4 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur-xl">
+          <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            Elegí una herramienta
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              ["media", "Contenido"],
+              ["scene", "Escena"],
+              ["text", "Texto y movimiento"],
+              ["stickers", "Stickers"],
+              ["layers", "Capas"],
+              ["transition", "Transición"],
+              ["recorder", "Grabar pantalla"],
+              ["voice", "Voz"],
+              ["audio", "Música"],
+              ["export", "Exportar"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setActiveTool(value)}
+                className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-black ${
+                  activeTool === value
+                    ? "bg-blue-600 text-white shadow"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="min-w-0 space-y-4">
+          <main className="order-2 min-w-0 space-y-4 xl:order-1">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
@@ -1924,18 +1943,15 @@ export default function ReelsStudioApp({
                 )
               }
               onOpenTransition={() =>
-                transitionSectionRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "center",
-                })
+                setActiveTool("transition")
               }
             />
 
 
           </main>
 
-          <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto pr-2">
-            <MediaLibrary
+          <aside className="order-1 min-w-0 space-y-4 xl:order-2 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-2">
+            {activeTool === "media" && <MediaLibrary
               mediaItems={mediaItems}
               selectedMediaId={selectedMediaId}
               disabled={loadingMedia}
@@ -1943,16 +1959,16 @@ export default function ReelsStudioApp({
               onSelect={setSelectedMediaId}
               onAddScene={addMediaAsScene}
               onRemove={removeMedia}
-            />
+            />}
 
-            <div ref={recorderSectionRef}>
+            {activeTool === "recorder" && <div ref={recorderSectionRef}>
               <ScreenRecorderPanel
                 disabled={false}
                 onUseRecording={useScreenRecording}
               />
-            </div>
+            </div>}
 
-            <div ref={voiceAudioSectionRef}>
+            {activeTool === "voice" && <div ref={voiceAudioSectionRef}>
               <VoiceAudioPanel
                 track={voiceTrack}
                 projectDuration={finalDuration}
@@ -1962,9 +1978,9 @@ export default function ReelsStudioApp({
                 onChange={changeVoiceTrack}
                 onRemove={removeVoiceTrack}
               />
-            </div>
+            </div>}
 
-            <div ref={audioSectionRef}>
+            {activeTool === "audio" && <div ref={audioSectionRef}>
               <AudioPanel
                 track={audioTrack}
                 projectDuration={project.sourceDuration}
@@ -1973,9 +1989,9 @@ export default function ReelsStudioApp({
                 onChange={changeAudioTrack}
                 onRemove={removeAudioTrack}
               />
-            </div>
+            </div>}
 
-            <ExportPanel
+            {activeTool === "export" && <div ref={exportSectionRef}><ExportPanel
               project={project}
               business={business}
               mediaItems={mediaItems}
@@ -1983,8 +1999,9 @@ export default function ReelsStudioApp({
               audioTrack={audioTrack}
               voiceTrack={voiceTrack}
               disabled={!project.clips.length}
-            />
+            /></div>}
 
+            {activeTool === "scene" && <>
             <SceneActionsInspector
               clip={selectedClip}
               index={selectedClipIndex}
@@ -2188,15 +2205,16 @@ export default function ReelsStudioApp({
               onReplace={replaceSelectedClipMedia}
               onChange={changeSelectedClip}
             />
+            </>}
 
-            <div ref={stickerSectionRef}>
+            {activeTool === "stickers" && <div ref={stickerSectionRef}>
               <StickerLibrary
                 disabled={!project.clips.length}
                 onAdd={addSticker}
               />
-            </div>
+            </div>}
 
-            <LayersManager
+            {activeTool === "layers" && <LayersManager
               layers={layers}
               selectedLayerId={selectedLayerId}
               disabled={!layers.length}
@@ -2289,8 +2307,9 @@ export default function ReelsStudioApp({
                   setSelectedLayerId("");
                 }
               }}
-            />
+            />}
 
+            {activeTool === "text" && <>
             <StickerInspector
               layer={selectedLayer}
               disabled={
@@ -2357,8 +2376,9 @@ export default function ReelsStudioApp({
               disabled={!project.clips.length}
               onChange={changeSelectedLayer}
             />
+            </>}
 
-            <div ref={transitionSectionRef}>
+            {activeTool === "transition" && <div ref={transitionSectionRef}>
               <TransitionInspector
                 clip={selectedClip}
                 isLast={
@@ -2415,9 +2435,9 @@ export default function ReelsStudioApp({
                   setPlaying(true);
                 }}
               />
-            </div>
+            </div>}
 
-            <ClipInspector
+            {activeTool === "scene" && <ClipInspector
               clip={selectedClip}
               sourceDuration={Math.max(
                 0.1,
@@ -2486,7 +2506,7 @@ export default function ReelsStudioApp({
 
                 if (next[0]) seek(next[0].start);
               }}
-            />
+            />}
           </aside>
         </div>
       </div>
