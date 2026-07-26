@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 import { useNavigate } from "react-router-dom";
 import {
   normalizeSearchText,
@@ -147,6 +148,12 @@ export default function BusinessDirectory() {
 
   async function registerWhatsappClick(businessId) {
     if (!businessId) return;
+
+    trackMetaStandardEvent("Contact", {
+      content_type: "product",
+      content_ids: [businessId],
+      content_category: "comercio",
+    });
 
     const { error } = await supabase.from("clicks").insert([
       {

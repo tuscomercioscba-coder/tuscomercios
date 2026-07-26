@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import { useState } from "react";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 
 const Icon = ({ name, className = "h-5 w-5" }) => {
   const paths = {
@@ -243,6 +244,13 @@ export default function PlansPage() {
         alert("Error creando suscripción");
         return;
       }
+
+      trackMetaStandardEvent("InitiateCheckout", {
+        content_name: `plan_${plan}`,
+        content_category: "suscripcion",
+        value: plan === "premium" ? 29999 : 19999,
+        currency: "ARS",
+      });
 
       window.location.href = data.init_point;
     } catch {

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Auth() {
     } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
+          trackRegistrationIfNew(session.user);
           await redirectUser(session.user.id);
         }
       }
@@ -29,7 +31,28 @@ export default function Auth() {
     } = await supabase.auth.getSession();
 
     if (session?.user) {
+      trackRegistrationIfNew(session.user);
       await redirectUser(session.user.id);
+    }
+  }
+
+  function trackRegistrationIfNew(user) {
+    if (!user?.id || !user?.created_at || !user?.last_sign_in_at) return;
+
+    const createdAt = new Date(user.created_at).getTime();
+    const lastSignInAt = new Date(user.last_sign_in_at).getTime();
+    const isNew = Math.abs(lastSignInAt - createdAt) <= 2 * 60 * 1000;
+    const key = `tc_meta_registered_${user.id}`;
+
+    if (!isNew || localStorage.getItem(key)) return;
+
+    if (
+      trackMetaStandardEvent("CompleteRegistration", {
+        content_name: "cuenta_tuscomercios",
+        status: true,
+      })
+    ) {
+      localStorage.setItem(key, "1");
     }
   }
 

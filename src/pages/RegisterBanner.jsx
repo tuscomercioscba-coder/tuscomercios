@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import Layout from "../components/Layout";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 
 export default function RegisterBanner() {
   const [businesses, setBusinesses] = useState([]);
@@ -185,6 +186,13 @@ export default function RegisterBanner() {
     if (!result.init_point) {
       throw new Error("Mercado Pago no devolvió link de pago");
     }
+
+    trackMetaStandardEvent("InitiateCheckout", {
+      content_name: "banner_regional",
+      content_category: "suscripcion",
+      value: 50000,
+      currency: "ARS",
+    });
 
     window.location.href = result.init_point;
   }

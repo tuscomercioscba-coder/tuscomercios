@@ -42,6 +42,7 @@ export async function onRequestPost(context) {
     let reason;
     let amount;
     let externalReference;
+    let backUrl;
 
     if (type === "banner") {
       const bannerId = String(body.banner_id || "").trim();
@@ -58,6 +59,7 @@ export async function onRequestPost(context) {
       amount = BANNER_PRICE;
       reason = "Tus Comercios - Banner regional por 30 días";
       externalReference = `banner:${banner.id}:${auth.user.id}`;
+      backUrl = `https://tuscomercios.com.ar/success?checkout=banner&banner_id=${encodeURIComponent(banner.id)}`;
     } else {
       const plan = String(body.plan || "").toLowerCase();
       amount = PLAN_PRICES[plan];
@@ -68,6 +70,7 @@ export async function onRequestPost(context) {
 
       reason = `Tus Comercios - Plan ${plan === "standard" ? "Estándar" : "Premium"}`;
       externalReference = `plan:${plan}:${auth.user.id}`;
+      backUrl = `https://tuscomercios.com.ar/success?checkout=plan&plan=${encodeURIComponent(plan)}`;
     }
 
     const response = await fetch("https://api.mercadopago.com/preapproval", {
@@ -80,7 +83,7 @@ export async function onRequestPost(context) {
         reason,
         external_reference: externalReference,
         payer_email: auth.user.email,
-        back_url: "https://tuscomercios.com.ar/success",
+        back_url: backUrl,
         notification_url:
           "https://tuscomercios.com.ar/api/mercadopago-webhook",
         auto_recurring: {

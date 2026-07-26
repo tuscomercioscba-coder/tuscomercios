@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function Register() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
@@ -25,6 +26,15 @@ export default function Register() {
     if (error) {
       setError("Error al registrarse");
       return;
+    }
+
+    const tracked = trackMetaStandardEvent("CompleteRegistration", {
+      content_name: "cuenta_tuscomercios",
+      status: true,
+    });
+
+    if (tracked && data?.user?.id) {
+      localStorage.setItem(`tc_meta_registered_${data.user.id}`, "1");
     }
 
     alert("Cuenta creada! Ahora iniciá sesión");

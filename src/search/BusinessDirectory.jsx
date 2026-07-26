@@ -9,6 +9,7 @@ import LoadingSearch from "./LoadingSearch";
 import useBusinesses from "./hooks/useBusinesses";
 import useGeolocation from "./hooks/useGeolocation";
 import { getProvinceName } from "./utils/provinces";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 import "./search.css";
 
 const SEARCH_SELECT = `
@@ -131,6 +132,12 @@ export default function BusinessDirectory() {
 
     const canTrack = await shouldTrackInteraction(business);
     if (!canTrack) return;
+
+    trackMetaStandardEvent("Contact", {
+      content_type: "product",
+      content_ids: [business.id],
+      content_category: business.rubro || "comercio",
+    });
 
     const { error } = await supabase
       .from("clicks")

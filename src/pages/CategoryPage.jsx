@@ -8,6 +8,7 @@ import EmptyResults from "../search/EmptyResults";
 import LoadingSearch from "../search/LoadingSearch";
 import useBusinesses from "../search/hooks/useBusinesses";
 import useGeolocation from "../search/hooks/useGeolocation";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 import "../search/search.css";
 
 export default function CategoryPage() {
@@ -105,6 +106,11 @@ export default function CategoryPage() {
 
   const registerWhatsappClick = async (business) => {
     if (!business?.id) return;
+    trackMetaStandardEvent("Contact", {
+      content_type: "product",
+      content_ids: [business.id],
+      content_category: business.rubro || "comercio",
+    });
     await supabase.from("clicks").insert([{ business_id: business.id }]);
   };
 

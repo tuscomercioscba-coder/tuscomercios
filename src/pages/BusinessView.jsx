@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../supabase";
 import Layout from "../components/Layout";
 import { Helmet } from "react-helmet-async";
+import { trackMetaStandardEvent } from "../services/analytics/metaPixel";
 
 const DIAS_ORDEN = [
   "lunes",
@@ -166,6 +167,12 @@ export default function BusinessView() {
       (data.status || "published") === "published"
     ) {
       await registerView(data.id);
+
+      trackMetaStandardEvent("ViewContent", {
+        content_type: "product",
+        content_ids: [data.id],
+        content_category: data.rubro || "comercio",
+      });
     }
 
     setCheckingAccess(false);
@@ -357,6 +364,13 @@ export default function BusinessView() {
   async function handleWhatsappClick() {
     if ((business.status || "published") !== "published") return;
     if (!shouldTrackMetrics) return;
+
+    trackMetaStandardEvent("Contact", {
+      content_type: "product",
+      content_ids: [business.id],
+      content_category: business.rubro || "comercio",
+    });
+
     await registerWhatsappClick(business.id);
   }
 

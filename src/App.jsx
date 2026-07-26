@@ -43,6 +43,7 @@ import {
   isAnalyticsExcluded,
   setAnalyticsExcluded,
   trackMetaPageView,
+  trackMetaStandardEvent,
 } from "./services/analytics/metaPixel";
 
 function Home() {
@@ -253,6 +254,10 @@ function AnalyticsTracker() {
 
   useEffect(() => {
     const handleSearch = async (event) => {
+      trackMetaStandardEvent("Search", {
+        content_category: "directorio_comercial",
+      });
+
       try {
         await supabase.from("page_events").insert([
           {

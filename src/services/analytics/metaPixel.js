@@ -131,21 +131,58 @@ export function trackMetaEvent(eventName, parameters = {}) {
   window.fbq("trackCustom", String(eventName), safeParameters);
 }
 
-/*
-Eventos preparados para próximos pasos:
+const STANDARD_EVENTS = new Set([
+  "Search",
+  "ViewContent",
+  "Contact",
+  "CompleteRegistration",
+  "InitiateCheckout",
+  "Purchase",
+]);
 
-trackMetaEvent("Search", { category, city });
-trackMetaEvent("BusinessView", { business_id, category, city });
-trackMetaEvent("WhatsAppClick", { business_id, category });
-trackMetaEvent("CompleteRegistration", { source: "web" });
-trackMetaEvent("InitiateCheckout", { plan, value, currency: "ARS" });
-trackMetaEvent("Purchase", { plan, value, currency: "ARS" });
+function sanitizeMetaParameters(parameters = {}) {
+  const safeParameters = {};
 
-Nunca enviar:
-- nombre
-- email
-- teléfono
-- DNI
-- dirección exacta
-- contenido escrito por el usuario
-*/
+  for (const [key, value] of Object.entries(parameters || {})) {
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      safeParameters[key] = value;
+      continue;
+    }
+
+    if (
+      Array.isArray(value) &&
+      value.every(
+        (item) =>
+          typeof item === "string" ||
+          typeof item === "number"
+      )
+    ) {
+      safeParameters[key] = value.slice(0, 20);
+    }
+  }
+
+  return safeParameters;
+}
+
+export function trackMetaStandardEvent(eventName, parameters = {}) {
+  const normalizedEvent = String(eventName || "");
+
+  if (
+    !STANDARD_EVENTS.has(normalizedEvent) ||
+    !initializeMetaPixel()
+  ) {
+    return false;
+  }
+
+  window.fbq(
+    "track",
+    normalizedEvent,
+    sanitizeMetaParameters(parameters)
+  );
+
+  return true;
+}
