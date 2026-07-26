@@ -319,7 +319,7 @@ export default function BrandKit() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#f1f5f9_100%)] pb-28 lg:pb-8">
+      <div className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#f1f5f9_100%)] pb-28 lg:pb-8">
         <div className="mx-auto max-w-[1500px] p-3 sm:p-4 md:p-6">
           <header className="relative mb-5 overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#020617_0%,#172554_48%,#4c1d95_100%)] p-5 text-white shadow-2xl sm:p-6 md:p-8">
             <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" />

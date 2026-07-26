@@ -501,25 +501,25 @@ export default function MentorPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#eef2f7_100%)] p-3 sm:p-5">
+      <div className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#eef2f7_100%)] p-2 sm:p-5">
         <div className="mx-auto max-w-[1500px] space-y-4">
-          <header className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800 text-white shadow-2xl">
-            <div className="flex flex-col justify-between gap-5 p-6 sm:p-8 md:flex-row md:items-center">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.4rem] border border-white/15 bg-white/10 text-2xl font-black shadow-inner">
+          <header className="min-w-0 overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800 text-white shadow-2xl sm:rounded-[2rem]">
+            <div className="flex flex-col justify-between gap-4 p-4 sm:p-8 md:flex-row md:items-center">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-xl font-black shadow-inner sm:h-16 sm:w-16 sm:rounded-[1.4rem] sm:text-2xl">
                   M
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
                     TusComercios Studio
                   </p>
 
-                  <h1 className="mt-1 text-3xl font-black sm:text-5xl">
+                  <h1 className="mt-1 text-2xl font-black sm:text-5xl">
                     Mentor IA
                   </h1>
 
-                  <p className="mt-1 text-base font-semibold text-blue-100 sm:text-lg">
+                  <p className="mt-1 text-sm font-semibold leading-snug text-blue-100 sm:text-lg">
                     Tu asesor de marketing para vender más.
                   </p>
                 </div>
@@ -532,13 +532,13 @@ export default function MentorPage() {
                     "/studio"
                   )
                 }
-                className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-black transition hover:bg-white/20"
+                className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-black transition hover:bg-white/20 md:w-auto md:px-5 md:text-base"
               >
                 ← Volver a Studio
               </button>
             </div>
 
-            <div className="grid border-t border-white/10 bg-black/10 sm:grid-cols-3">
+            <div className="grid grid-cols-3 border-t border-white/10 bg-black/10">
               <HeaderStat
                 label="Negocio"
                 value={
@@ -585,7 +585,7 @@ export default function MentorPage() {
               />
             </div>
 
-            <section className="order-1 flex min-h-[680px] flex-col overflow-hidden rounded-[2rem] border border-white bg-white/90 shadow-xl backdrop-blur xl:order-2 xl:h-[720px] xl:min-h-0">
+            <section className="order-1 flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-white bg-white/90 shadow-xl backdrop-blur sm:min-h-[680px] sm:rounded-[2rem] xl:order-2 xl:h-[720px] xl:min-h-0">
               <div className="border-b border-slate-200 bg-white p-4 sm:p-5">
                 <MentorQuickActions
                   disabled={
@@ -698,7 +698,7 @@ function HeaderStat({
 }) {
   return (
     <div
-      className={`p-4 sm:p-5 ${
+      className={`min-w-0 p-3 sm:p-5 ${
         last
           ? ""
           : "border-b border-white/10 sm:border-b-0 sm:border-r"
@@ -708,7 +708,7 @@ function HeaderStat({
         {label}
       </p>
 
-      <p className="mt-1 truncate font-black text-white">
+      <p className="mt-1 break-words text-xs font-black leading-tight text-white sm:text-base">
         {value}
       </p>
     </div>

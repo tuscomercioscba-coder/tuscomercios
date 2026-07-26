@@ -308,7 +308,7 @@ export default function Studio() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#f1f5f9_100%)]">
+      <div className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#f1f5f9_100%)]">
         <div className="mx-auto max-w-7xl space-y-5 p-3 pb-10 sm:p-4 md:p-6">
           <Hero
             selectedItem={selectedItem}

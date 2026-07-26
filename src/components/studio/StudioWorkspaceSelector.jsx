@@ -6,7 +6,7 @@ export default function StudioWorkspaceSelector({
   isAdmin = false,
 }) {
   return (
-    <section className="rounded-[2rem] border border-white/80 bg-white/90 p-4 shadow-xl sm:p-5">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/90 p-3 shadow-xl sm:rounded-[2rem] sm:p-5">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
@@ -27,7 +27,7 @@ export default function StudioWorkspaceSelector({
       {workspaces.length > 0 && (
         <div>
           <SectionTitle>Espacios</SectionTitle>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
@@ -38,15 +38,15 @@ export default function StudioWorkspaceSelector({
                     entityType: "workspace",
                   })
                 }
-                className={`rounded-3xl border p-4 text-left transition ${
+                className={`min-w-0 rounded-2xl border p-3 text-left transition sm:rounded-3xl sm:p-4 ${
                   selectedItem?.entityType === "workspace" &&
                   selectedItem?.id === workspace.id
                     ? "border-violet-500 bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-xl"
                     : "border-violet-100 bg-violet-50 text-slate-900 hover:border-violet-300 hover:shadow-lg"
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white sm:h-14 sm:w-14">
                     {workspace.logo || workspace.image ? (
                       <img
                         src={workspace.logo || workspace.image}
@@ -59,7 +59,7 @@ export default function StudioWorkspaceSelector({
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-lg font-black">
+                    <p className="break-words text-sm font-black leading-tight sm:text-lg">
                       {workspace.name || "TusComercios"}
                     </p>
                     <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] opacity-75">
@@ -79,7 +79,7 @@ export default function StudioWorkspaceSelector({
       {businesses.length > 0 && (
         <div className={workspaces.length > 0 ? "mt-7" : ""}>
           <SectionTitle>Comercios</SectionTitle>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
             {businesses.map((business) => {
               const selected =
                 selectedItem?.entityType === "business" &&
@@ -95,14 +95,14 @@ export default function StudioWorkspaceSelector({
                       entityType: "business",
                     })
                   }
-                  className={`rounded-3xl border p-4 text-left transition ${
+                  className={`min-w-0 rounded-2xl border p-3 text-left transition sm:rounded-3xl sm:p-4 ${
                     selected
                       ? "border-blue-500 bg-slate-950 text-white shadow-xl"
                       : "border-slate-200 bg-slate-50 text-slate-900 hover:border-blue-300 hover:bg-white hover:shadow-lg"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-200">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-200 sm:h-14 sm:w-14">
                       {business.logo || business.image ? (
                         <img
                           src={business.logo || business.image}
@@ -117,7 +117,7 @@ export default function StudioWorkspaceSelector({
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-lg font-black">
+                      <p className="break-words text-sm font-black leading-tight sm:text-lg">
                         {business.negocio}
                       </p>
                       <p className="mt-1 truncate text-sm font-semibold opacity-70">

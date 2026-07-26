@@ -24,11 +24,11 @@ export default function BrandPreview({
 
   return (
     <section
-      className="overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl"
+      className="min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-white/80 bg-white shadow-2xl sm:rounded-[2rem]"
       style={variables}
     >
       <div
-        className="relative min-h-[560px] p-6 sm:p-8"
+        className="relative min-h-[440px] p-5 sm:min-h-[560px] sm:p-8"
         style={{
           background: `linear-gradient(145deg, ${brandKit.colors.secondary}, ${brandKit.colors.primary})`,
         }}
@@ -41,24 +41,24 @@ export default function BrandPreview({
           }}
         />
 
-        <div className="relative z-10 flex h-full min-h-[500px] flex-col justify-between">
+        <div className="relative z-10 flex h-full min-h-[400px] flex-col justify-between sm:min-h-[500px]">
           <div>
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {brandKit.logos.primary ? (
                 <img
                   src={brandKit.logos.primary}
                   alt=""
-                  className="h-20 w-20 rounded-3xl bg-white/10 object-contain p-2 shadow-xl"
+                  className="h-14 w-14 shrink-0 rounded-2xl bg-white/10 object-contain p-2 shadow-xl sm:h-20 sm:w-20 sm:rounded-3xl"
                 />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white/10 text-2xl font-black text-white">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-xl font-black text-white sm:h-20 sm:w-20 sm:rounded-3xl sm:text-2xl">
                   TC
                 </div>
               )}
 
               <div className="min-w-0">
                 <p
-                  className="truncate text-2xl font-black text-white"
+                  className="break-words text-xl font-black leading-tight text-white sm:text-2xl"
                   style={{ fontFamily: titleFont }}
                 >
                   {brandKit.identity.businessName ||
@@ -67,7 +67,7 @@ export default function BrandPreview({
                 </p>
 
                 <p
-                  className="mt-1 truncate text-sm font-semibold text-white/75"
+                  className="mt-1 break-words text-xs font-semibold text-white/75 sm:text-sm"
                   style={{ fontFamily: bodyFont }}
                 >
                   {brandKit.identity.slogan ||
@@ -76,7 +76,7 @@ export default function BrandPreview({
               </div>
             </div>
 
-            <div className="mt-12">
+            <div className="mt-8 sm:mt-12">
               <span
                 className="inline-flex rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em]"
                 style={{
@@ -89,14 +89,14 @@ export default function BrandPreview({
               </span>
 
               <h2
-                className="mt-5 max-w-xl text-4xl font-black leading-tight text-white sm:text-5xl"
+                className="mt-5 max-w-xl break-words text-3xl font-black leading-tight text-white sm:text-5xl"
                 style={{ fontFamily: titleFont }}
               >
                 Tu identidad visual aplicada automáticamente
               </h2>
 
               <p
-                className="mt-4 max-w-xl text-base font-semibold leading-relaxed text-white/75"
+                className="mt-4 max-w-xl break-words text-sm font-semibold leading-relaxed text-white/75 sm:text-base"
                 style={{ fontFamily: bodyFont }}
               >
                 {brandKit.identity.shortDescription ||

@@ -22,7 +22,7 @@ export default function BrandEditor({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 max-w-full space-y-5 overflow-hidden">
       <Panel title="Identidad">
         <TextField
           label="Nombre comercial"
@@ -69,7 +69,7 @@ export default function BrandEditor({
       </Panel>
 
       <Panel title="Logos">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {[
             ["primary", "Logo principal"],
             ["white", "Logo blanco"],
@@ -95,7 +95,7 @@ export default function BrandEditor({
       </Panel>
 
       <Panel title="Colores">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {[
             ["primary", "Primario"],
             ["secondary", "Secundario"],
@@ -121,7 +121,7 @@ export default function BrandEditor({
       </Panel>
 
       <Panel title="Tipografías">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <SelectField
             label="Principal"
             value={brandKit.typography.primaryFont}
@@ -170,7 +170,7 @@ export default function BrandEditor({
           }
         />
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <RangeField
             label="Redondeado"
             value={brandKit.style.cornerRadius}
@@ -217,7 +217,7 @@ export default function BrandEditor({
           }
         />
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <ColorField
             label="Fondo"
             value={brandKit.button.backgroundColor}
@@ -277,7 +277,7 @@ export default function BrandEditor({
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <SelectField
             label="Posición"
             value={brandKit.watermark.position}
@@ -338,7 +338,7 @@ export default function BrandEditor({
 
 function Panel({ title, children }) {
   return (
-    <section className="rounded-[2rem] border border-white/80 bg-white/95 p-4 shadow-xl backdrop-blur-xl sm:p-5">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[1.5rem] border border-white/80 bg-white/95 p-4 shadow-xl backdrop-blur-xl sm:rounded-[2rem] sm:p-5">
       <h3 className="mb-4 text-lg font-black text-slate-950 sm:text-xl">
         {title}
       </h3>
@@ -363,7 +363,7 @@ function TextField({
         value={value || ""}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 min-h-13 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
+        className="mt-2 min-h-13 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 disabled:opacity-50 sm:text-base"
       />
     </label>
   );
@@ -386,7 +386,7 @@ function SelectField({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 min-h-13 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 disabled:opacity-50"
+        className="mt-2 min-h-13 w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-4 focus:ring-blue-100 disabled:opacity-50 sm:px-4 sm:text-base"
       >
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>
