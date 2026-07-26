@@ -2,13 +2,35 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import {
+  Store,
+  Users,
+  BadgeCheck,
+  Star,
+  Crown,
+  WalletCards,
+  Eye,
+  MessageCircle,
+  Percent,
+  CreditCard,
+  Receipt,
+  Target,
+  PiggyBank,
+  Megaphone,
+  UserRound,
+  Calculator,
+  TrendingUp,
+  CircleDollarSign,
+  Landmark,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 export default function Dashboard() {
   const [businesses, setBusinesses] = useState([]);
   const [allBusinesses, setAllBusinesses] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
-  const [banners, setBanners] = useState([]);
   const [pageEvents, setPageEvents] = useState([]);
   const [myUserId, setMyUserId] = useState(null);
 
@@ -19,15 +41,12 @@ export default function Dashboard() {
   const [metricsStartDate, setMetricsStartDate] = useState("");
   const [metricsEndDate, setMetricsEndDate] = useState("");
 
-  const [clickRows, setClickRows] = useState([]);
-  const [viewRows, setViewRows] = useState([]);
   const [filteredTotalViewsExact, setFilteredTotalViewsExact] = useState(0);
   const [filteredTotalClicksExact, setFilteredTotalClicksExact] = useState(0);
   const [filteredViewsByBusinessExact, setFilteredViewsByBusinessExact] = useState({});
   const [filteredClicksByBusinessExact, setFilteredClicksByBusinessExact] = useState({});
   const [peopleEnteredExact, setPeopleEnteredExact] = useState(0);
   const [clicksByBusiness, setClicksByBusiness] = useState({});
-  const [visitsByBusiness, setVisitsByBusiness] = useState({});
   const [viewsByBusiness, setViewsByBusiness] = useState({});
   const [paymentRecords, setPaymentRecords] = useState([]);
   const [platformCosts, setPlatformCosts] = useState(null);
@@ -76,17 +95,6 @@ export default function Dashboard() {
     return { start, end };
   }
 
-  function filterRowsByDate(rows, dateField = "created_at") {
-    const { start, end } = getMetricsRange();
-
-    return (rows || []).filter((row) => {
-      if (!row?.[dateField]) return false;
-
-      const date = new Date(row[dateField]);
-
-      return date >= start && date <= end;
-    });
-  }
 
   function getMonthKey(date = new Date()) {
     return date.toISOString().slice(0, 7);
@@ -131,6 +139,8 @@ export default function Dashboard() {
     businesses,
     allBusinesses,
     isAdmin,
+    pageEvents,
+    myUserId,
   ]);
 
   async function getData() {
@@ -189,40 +199,14 @@ export default function Dashboard() {
   const groupedViews = await countRowsByBusiness("views", businessesForMetrics);
   const groupedClicks = await countRowsByBusiness("clicks", businessesForMetrics);
 
-  const businessIds = (businessesForMetrics || []).map((business) => business.id);
-
-  let viewsRowsQuery = supabase
-    .from("views")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(10000);
-
-  let clicksRowsQuery = supabase
-    .from("clicks")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(10000);
-
-  if (businessIds.length > 0) {
-    viewsRowsQuery = viewsRowsQuery.in("business_id", businessIds);
-    clicksRowsQuery = clicksRowsQuery.in("business_id", businessIds);
-  }
-
-  const { data: rawViewsRows } = await viewsRowsQuery;
-  const { data: rawClicksRows } = await clicksRowsQuery;
-
-  setViewRows(rawViewsRows || []);
-  setClickRows(rawClicksRows || []);
-
   setClicksByBusiness(groupedClicks);
-  setVisitsByBusiness({});
   setViewsByBusiness(groupedViews);
 
   const { data: pageEventsData } = await supabase
     .from("page_events")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(5000);
+    .limit(20000);
 
   setPageEvents(pageEventsData || []);
 
@@ -233,22 +217,6 @@ export default function Dashboard() {
   setBusinesses(sortBusinessesByPlan(sortedMyBusinesses));
   setAllBusinesses(sortBusinessesByPlan(allData || []));
 
-  let bannersQuery = supabase.from("banners").select(`
-    *,
-    businesses (
-      id,
-      negocio,
-      slug,
-      user_id
-    )
-  `);
-
-  if (!admin) {
-    bannersQuery = bannersQuery.eq("user_id", userId);
-  }
-
-  const { data: bannersData } = await bannersQuery;
-  setBanners(bannersData || []);
 
   if (admin) {
     const { data: profilesData } = await supabase.from("profiles").select("*");
@@ -327,14 +295,44 @@ export default function Dashboard() {
 
     const range = getMetricsRange();
 
-    const { count: peopleCount } = await supabase
-      .from("page_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event_type", "page_view")
-      .gte("created_at", range.start.toISOString())
-      .lte("created_at", range.end.toISOString());
+    const uniquePeople = new Set(
+      (pageEvents || [])
+        .filter((event) => {
+          if (
+            !["unique_visit", "page_view"].includes(event.event_type) ||
+            !event.created_at
+          ) {
+            return false;
+          }
 
-    setPeopleEnteredExact(peopleCount || 0);
+          const eventDate = new Date(event.created_at);
+          const isInsideRange = eventDate >= range.start && eventDate <= range.end;
+          const isAdministrator =
+            event.role === "admin" ||
+            event.user_role === "admin" ||
+            event.is_admin === true ||
+            (myUserId && event.user_id === myUserId);
+
+          const stableVisitorId =
+            event.visitor_id ||
+            event.anonymous_id ||
+            event.device_id ||
+            event.session_id ||
+            event.user_id;
+
+          return isInsideRange && !isAdministrator && Boolean(stableVisitorId);
+        })
+        .map(
+          (event) =>
+            event.visitor_id ||
+            event.anonymous_id ||
+            event.device_id ||
+            event.session_id ||
+            event.user_id
+        )
+    );
+
+    setPeopleEnteredExact(uniquePeople.size);
   }
 
   async function loadFinanceData() {
@@ -360,11 +358,15 @@ export default function Dashboard() {
       costsData || {
         month: range.monthKey,
         chatgpt: 0,
+        gemini: 0,
         supabase: 0,
         cloudflare: 0,
         dominio: 0,
-        publicidad: 0,
+        contador: 0,
+        impuestos: 0,
+        empleados: 0,
         otros: 0,
+        reserva_acumulada_anterior: 0,
       }
     );
   }
@@ -385,11 +387,17 @@ export default function Dashboard() {
       const payload = {
         month: platformCosts.month,
         chatgpt: Number(platformCosts.chatgpt || 0),
+        gemini: Number(platformCosts.gemini || 0),
         supabase: Number(platformCosts.supabase || 0),
         cloudflare: Number(platformCosts.cloudflare || 0),
         dominio: Number(platformCosts.dominio || 0),
-        publicidad: Number(platformCosts.publicidad || 0),
+        contador: Number(platformCosts.contador || 0),
+        impuestos: Number(platformCosts.impuestos || 0),
+        empleados: Number(platformCosts.empleados || 0),
         otros: Number(platformCosts.otros || 0),
+        reserva_acumulada_anterior: Number(
+          platformCosts.reserva_acumulada_anterior || 0
+        ),
         updated_at: new Date().toISOString(),
       };
 
@@ -456,10 +464,19 @@ export default function Dashboard() {
   async function cancelMercadoPagoSubscription(mpSubscriptionId) {
     if (!mpSubscriptionId) return;
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
+    }
+
     const response = await fetch("/api/cancel-subscription", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         mp_subscription_id: mpSubscriptionId,
@@ -483,9 +500,6 @@ export default function Dashboard() {
   const filteredTotalClicks = filteredTotalClicksExact;
   const peopleToday = peopleEnteredExact;
 
-  const totalClicks = Object.values(clicksByBusiness).reduce((a, b) => a + b, 0);
-  const totalViews = Object.values(viewsByBusiness).reduce((a, b) => a + b, 0);
-
   const activeSubscriptions = subscriptions.filter(
     (s) => s.status === "authorized"
   );
@@ -499,11 +513,6 @@ export default function Dashboard() {
     0
   );
 
-  const paidBusinesses = businesses.filter(
-    (b) => b.plan === "standard" || b.plan === "premium"
-  );
-
-  const canCreateBanner = isAdmin || paidBusinesses.length > 0;
 
   const publishedBusinesses = businesses.filter(
     (b) => (b.status || "published") === "published"
@@ -620,53 +629,6 @@ export default function Dashboard() {
     }
   }
 
-  async function cancelBanner(banner) {
-    const confirmCancel = confirm(
-      "¿Dar de baja este banner? Se cancelará la suscripción de Mercado Pago si existe."
-    );
-
-    if (!confirmCancel) return;
-
-    try {
-      if (banner.mp_subscription_id) {
-        await cancelMercadoPagoSubscription(banner.mp_subscription_id);
-      }
-
-      await supabase
-        .from("banners")
-        .update({
-          active: false,
-          payment_status: "cancelled",
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", banner.id);
-
-      await getData();
-
-      alert("Banner dado de baja correctamente.");
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "Error al dar de baja el banner");
-    }
-  }
-
-  async function toggleBannerActive(id, currentValue) {
-    await supabase
-      .from("banners")
-      .update({ active: !currentValue })
-      .eq("id", id);
-
-    await getData();
-  }
-
-  function goToBannerBusiness(banner) {
-    if (banner.businesses?.slug) {
-      navigate(`/${banner.businesses.slug}`);
-      return;
-    }
-
-    alert("Este banner todavía no tiene una vidriera asociada correctamente.");
-  }
 
   if (loading) {
     return (
@@ -682,72 +644,64 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-100 p-6">
+      <div className="min-h-screen bg-[#f4f7fb] px-4 py-6 md:px-6 md:py-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-wrap justify-between items-center mb-8 gap-3">
-            <div>
-              <h1 className="text-3xl font-black text-slate-800">
-                {isAdmin ? "Panel de Control" : "Mi Panel"}
-              </h1>
+          <section className="relative mb-7 overflow-hidden rounded-[30px] border border-blue-100 bg-gradient-to-br from-slate-950 via-blue-950 to-blue-700 p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] md:p-8">
+            <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
 
-              <p className="text-gray-500 mt-1">
-                {isAdmin
-                  ? "Control profesional de negocios, pagos, banners y métricas."
-                  : "Administrá tus negocios, banners y resultados."}
-              </p>
-            </div>
+            <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="mb-2 text-xs font-black uppercase tracking-[0.24em] text-red-300">
+                  {isAdmin ? "Centro de control" : "Gestión de tu negocio"}
+                </p>
 
-            <div className="flex gap-3 flex-wrap">
+                <h1 className="text-3xl font-black tracking-tight md:text-4xl">
+                  {isAdmin ? "Panel de Control" : "Mi Panel"}
+                </h1>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 md:text-base">
+                  {isAdmin
+                    ? "Administrá negocios, usuarios, suscripciones, métricas reales y rentabilidad desde un solo lugar."
+                    : "Administrá tus vidrieras, revisá resultados y mejorá la presencia digital de tu negocio."}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => navigate("/studio")}
-                  className="bg-slate-900 text-white px-4 py-2 rounded-xl hover:bg-black transition font-bold"
-               >
-                  🎨 TusComercios Studio
-               </button>
-               
-              {isAdmin && (
-                <button
-                  onClick={() => navigate("/register-business?admin=true")}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 font-black text-white backdrop-blur transition hover:bg-white/20"
                 >
-                  + Crear negocio Admin
+                  TusComercios Studio
                 </button>
-              )}
 
-              {canCreateBanner ? (
-                <button
-                  onClick={() => navigate("/crear-banner")}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition font-bold"
-                >
-                  + {isAdmin ? "Crear banner" : "Contratar banner"}
-                </button>
-              ) : (
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate("/register-business?admin=true")}
+                    className="rounded-2xl bg-white px-5 py-3 font-black text-blue-800 shadow-lg transition hover:-translate-y-0.5"
+                  >
+                    + Crear negocio Admin
+                  </button>
+                )}
+
                 <button
                   onClick={() => navigate("/planes")}
-                  className="bg-purple-100 text-purple-700 px-4 py-2 rounded-xl hover:bg-purple-200 transition font-bold"
+                  className="rounded-2xl bg-red-500 px-5 py-3 font-black text-white shadow-lg shadow-red-950/20 transition hover:-translate-y-0.5 hover:bg-red-600"
                 >
-                  Banner disponible en planes pagos
+                  + Agregar negocio
                 </button>
-              )}
-
-              <button
-                onClick={() => navigate("/planes")}
-                className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 transition"
-              >
-                + Agregar negocio
-              </button>
+              </div>
             </div>
-          </div>
+          </section>
 
           {isAdmin && (
-            <div className="bg-white rounded-2xl shadow p-2 mb-8 flex gap-2 overflow-x-auto">
+            <div className="mb-7 flex gap-2 overflow-x-auto rounded-[24px] border border-slate-200 bg-white p-2 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
               {[
                 ["resumen", "Resumen"],
                 ["mis-negocios", "Mis negocios"],
                 ["negocios", "Todos los negocios"],
                 ["usuarios", "Usuarios"],
                 ["suscripciones", "Suscripciones"],
-                ["banners", "Banners"],
                 ["metricas", "Métricas"],
                 ["finanzas", "Rentabilidad / Finanzas"],
               ].map(([key, label]) => (
@@ -756,8 +710,8 @@ export default function Dashboard() {
                   onClick={() => setActiveTab(key)}
                   className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap ${
                     activeTab === key
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                      : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
                   }`}
                 >
                   {label}
@@ -795,15 +749,7 @@ export default function Dashboard() {
 
               <UpgradePlanCTA businesses={businesses} navigate={navigate} />
 
-              <BannerCTA canCreateBanner={canCreateBanner} navigate={navigate} />
 
-              <UserBanners
-                banners={banners}
-                navigate={navigate}
-                goToBannerBusiness={goToBannerBusiness}
-                cancelBanner={cancelBanner}
-                toggleBannerActive={toggleBannerActive}
-              />
 
               <BusinessCards
                 businesses={businesses}
@@ -819,20 +765,25 @@ export default function Dashboard() {
 
           {isAdmin && activeTab === "resumen" && (
             <>
+              <DashboardMetricsHero
+                people={peopleToday}
+                views={filteredTotalViews}
+                whatsapp={filteredTotalClicks}
+                conversion={
+                  filteredTotalViews
+                    ? `${Math.round((filteredTotalClicks / filteredTotalViews) * 100)}%`
+                    : "0%"
+                }
+              />
+
               <StatsGrid
                 items={[
-                  ["Total negocios", allBusinesses.length, "bg-white", "text-slate-800"],
-                  ["Usuarios", profiles.length, "bg-blue-50", "text-blue-700"],
-                  ["Personas ingresaron", peopleToday, "bg-cyan-50", "text-cyan-700"],
-                  ["Vistas vidrieras", filteredTotalViews, "bg-blue-50", "text-blue-700"],
-                  ["Clicks WhatsApp", filteredTotalClicks, "bg-green-50", "text-green-700"],
-                  [
-                    "Conversión",
-                    filteredTotalViews ? `${Math.round((filteredTotalClicks / filteredTotalViews) * 100)}%` : "0%",
-                    "bg-purple-50",
-                    "text-purple-700",
-                  ],
-                  ["Ingresos reales", money(realMonthlyIncome), "bg-purple-50", "text-purple-700"],
+                  ["Total negocios", allBusinesses.length, "bg-white", "text-slate-900"],
+                  ["Usuarios registrados", profiles.length, "bg-blue-50", "text-blue-700"],
+                  ["Plan Gratis", allBusinesses.filter((b) => b.plan === "free").length, "bg-slate-50", "text-slate-800"],
+                  ["Plan Estándar", allBusinesses.filter((b) => b.plan === "standard").length, "bg-red-50", "text-red-700"],
+                  ["Plan Premium", allBusinesses.filter((b) => b.plan === "premium").length, "bg-blue-50", "text-blue-700"],
+                  ["Ingresos reales", money(realMonthlyIncome), "bg-emerald-50", "text-emerald-700"],
                 ]}
               />
 
@@ -856,13 +807,6 @@ export default function Dashboard() {
                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold mb-3"
                   >
                     Crear negocio
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/crear-banner")}
-                    className="w-full bg-purple-600 text-white py-3 rounded-xl font-bold mb-3"
-                  >
-                    Crear banner gratis
                   </button>
 
                   <button
@@ -908,15 +852,7 @@ export default function Dashboard() {
                 ]}
               />
 
-              <BannerCTA canCreateBanner={true} navigate={navigate} isAdmin />
 
-              <UserBanners
-                banners={banners.filter((b) => b.user_id === myUserId)}
-                navigate={navigate}
-                goToBannerBusiness={goToBannerBusiness}
-                cancelBanner={cancelBanner}
-                toggleBannerActive={toggleBannerActive}
-              />
 
               <BusinessCards
                 businesses={businesses}
@@ -968,7 +904,7 @@ export default function Dashboard() {
                           className={`px-3 py-1 rounded-full text-xs font-bold ${
                             (b.status || "published") === "published"
                               ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
+                              : "bg-blue-100 text-blue-700"
                           }`}
                         >
                           {(b.status || "published") === "published" ? "Publicado" : "Borrador"}
@@ -994,7 +930,7 @@ export default function Dashboard() {
                         {b.plan !== "free" && (
                           <button
                             onClick={() => cancelBusinessPlan(b)}
-                            className="bg-orange-500 text-white px-3 py-1 rounded-lg"
+                            className="bg-red-500 text-white px-3 py-1 rounded-lg"
                           >
                             Cancelar plan
                           </button>
@@ -1073,7 +1009,7 @@ export default function Dashboard() {
                           className={`px-3 py-1 rounded-full text-xs font-bold ${
                             s.status === "authorized"
                               ? "bg-green-100 text-green-700"
-                              : "bg-orange-100 text-orange-700"
+                              : "bg-red-100 text-red-700"
                           }`}
                         >
                           {s.status}
@@ -1088,26 +1024,6 @@ export default function Dashboard() {
             </AdminTable>
           )}
 
-          {isAdmin && activeTab === "banners" && (
-            <AdminTable title="Banners regionales">
-              <div className="p-4 border-b">
-                <button
-                  onClick={() => navigate("/crear-banner")}
-                  className="bg-purple-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-purple-700 transition"
-                >
-                  + Crear banner
-                </button>
-              </div>
-
-              <BannersTable
-                banners={banners}
-                navigate={navigate}
-                goToBannerBusiness={goToBannerBusiness}
-                toggleBannerActive={toggleBannerActive}
-                cancelBanner={cancelBanner}
-              />
-            </AdminTable>
-          )}
 
           {isAdmin && activeTab === "metricas" && (
             <AdminGrowthMetrics
@@ -1167,40 +1083,84 @@ function FinanceDashboard({
       return total + Number(payment.comision_mp || 0);
     }
 
-    if (payment.monto_liquidado !== null && payment.monto_liquidado !== undefined) {
-      return total + (Number(payment.precio || 0) - Number(payment.monto_liquidado || 0));
+    if (
+      payment.monto_liquidado !== null &&
+      payment.monto_liquidado !== undefined
+    ) {
+      return (
+        total +
+        (Number(payment.precio || 0) -
+          Number(payment.monto_liquidado || 0))
+      );
     }
 
     return total + Number(payment.precio || 0) * 0.08;
   }, 0);
 
   const netReceived = approvedPayments.reduce((total, payment) => {
-    if (payment.monto_liquidado !== null && payment.monto_liquidado !== undefined) {
+    if (
+      payment.monto_liquidado !== null &&
+      payment.monto_liquidado !== undefined
+    ) {
       return total + Number(payment.monto_liquidado || 0);
     }
 
     return total + Number(payment.precio || 0) * 0.92;
   }, 0);
 
+  const reserveCurrentMonth = grossIncome * 0.01;
+
   const monthlyCosts =
     Number(platformCosts?.chatgpt || 0) +
+    Number(platformCosts?.gemini || 0) +
     Number(platformCosts?.supabase || 0) +
     Number(platformCosts?.cloudflare || 0) +
     Number(platformCosts?.dominio || 0) +
-    Number(platformCosts?.publicidad || 0) +
+    Number(platformCosts?.contador || 0) +
+    Number(platformCosts?.impuestos || 0) +
+    Number(platformCosts?.empleados || 0) +
     Number(platformCosts?.otros || 0);
 
-  const profit = netReceived - monthlyCosts;
+  const availableAfterCosts = Math.max(
+    0,
+    netReceived - reserveCurrentMonth - monthlyCosts
+  );
+
+  const marketingAmount = availableAfterCosts * 0.5;
+  const lucianoSalary = availableAfterCosts * 0.4;
+  const nailaSalary = availableAfterCosts * 0.1;
+
+  const reservePrevious = Number(
+    platformCosts?.reserva_acumulada_anterior || 0
+  );
+  const reserveAccumulated = reservePrevious + reserveCurrentMonth;
+
   const paidClients = approvedPayments.length;
   const averageNetPerClient = paidClients ? netReceived / paidClients : 0;
-  const breakEvenClients = averageNetPerClient
-    ? Math.ceil(monthlyCosts / averageNetPerClient)
+  const marginPercent = grossIncome
+    ? Math.round((availableAfterCosts / grossIncome) * 100)
     : 0;
 
-  const standardNet = 7361;
-  const premiumNet = 15000 * 0.92;
-  const standardNeeded = monthlyCosts ? Math.ceil(monthlyCosts / standardNet) : 0;
-  const premiumNeeded = monthlyCosts ? Math.ceil(monthlyCosts / premiumNet) : 0;
+  const monthsCovered = monthlyCosts
+    ? reserveAccumulated / monthlyCosts
+    : 0;
+
+  const breakEvenClients = averageNetPerClient
+    ? Math.ceil((monthlyCosts + reserveCurrentMonth) / averageNetPerClient)
+    : 0;
+
+  const standardGross = 19999;
+  const premiumGross = 29999;
+  const standardNet = standardGross * 0.92;
+  const premiumNet = premiumGross * 0.92;
+
+  const standardNeeded = monthlyCosts
+    ? Math.ceil(monthlyCosts / standardNet)
+    : 0;
+
+  const premiumNeeded = monthlyCosts
+    ? Math.ceil(monthlyCosts / premiumNet)
+    : 0;
 
   const standardPayments = approvedPayments.filter(
     (payment) => payment.plan === "standard"
@@ -1210,176 +1170,400 @@ function FinanceDashboard({
     (payment) => payment.plan === "premium"
   ).length;
 
-  return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-3xl shadow p-6">
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
-          <div>
-            <h2 className="text-2xl font-black text-slate-900">
-              Rentabilidad / Finanzas
-            </h2>
+  const financialStatus =
+    availableAfterCosts <= 0
+      ? {
+          label: "Atención",
+          helper: "Los costos superan el dinero disponible.",
+          classes: "border-red-200 bg-red-50 text-red-700",
+        }
+      : marginPercent < 20
+        ? {
+            label: "Ajustado",
+            helper: "Hay ganancia, pero el margen todavía es bajo.",
+            classes: "border-blue-200 bg-blue-50 text-blue-700",
+          }
+        : marginPercent < 45
+          ? {
+              label: "Creciendo",
+              helper: "La empresa cubre gastos y genera margen.",
+              classes: "border-blue-200 bg-blue-50 text-blue-700",
+            }
+          : {
+              label: "Excelente",
+              helper: "Buen margen disponible para crecer y distribuir.",
+              classes: "border-emerald-200 bg-emerald-50 text-emerald-700",
+            };
 
-            <p className="text-slate-500 text-sm">
-              Calculá ingresos, descuentos de Mercado Pago, costos, ganancia y punto de equilibrio.
+  const costFields = [
+    ["chatgpt", "ChatGPT", "Costo mensual convertido a pesos"],
+    ["gemini", "Gemini API", "Saldo o consumo mensual convertido a pesos"],
+    ["supabase", "Supabase", "Plan y consumos convertidos a pesos"],
+    ["cloudflare", "Cloudflare", "Hosting o servicios adicionales"],
+    ["dominio", "Dominio", "Costo mensual proporcional"],
+    ["contador", "Contador", "Honorarios mensuales"],
+    ["impuestos", "Impuestos", "Impuestos y obligaciones"],
+    ["empleados", "Empleados", "Sueldos fijos futuros"],
+    ["otros", "Otros costos", "Cualquier otro gasto fijo"],
+  ];
+
+  return (
+    <div className="space-y-7">
+      <section className="relative overflow-hidden rounded-[30px] bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 p-6 text-white shadow-[0_24px_65px_rgba(30,64,175,0.20)] md:p-8">
+        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-red-300">
+              Centro Financiero
+            </p>
+            <h2 className="mt-2 text-3xl font-black">
+              Control económico de TusComercios
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100">
+              Ingresos en pesos, comisión de Mercado Pago, reserva empresarial,
+              gastos fijos y distribución automática del dinero disponible.
             </p>
           </div>
 
+          <div
+            className={`rounded-2xl border px-5 py-4 ${financialStatus.classes}`}
+          >
+            <p className="text-xs font-black uppercase tracking-[0.16em]">
+              Estado financiero
+            </p>
+            <p className="mt-1 text-2xl font-black">
+              {financialStatus.label}
+            </p>
+            <p className="mt-1 max-w-xs text-xs font-semibold opacity-80">
+              {financialStatus.helper}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-red-500">
+              Período
+            </p>
+            <h3 className="mt-1 text-xl font-black text-slate-900">
+              Seleccionar información financiera
+            </h3>
+          </div>
+
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setFinanceFilter("current")}
-              className={`px-4 py-2 rounded-xl font-bold ${
-                financeFilter === "current"
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              Mes actual
-            </button>
-
-            <button
-              onClick={() => setFinanceFilter("previous")}
-              className={`px-4 py-2 rounded-xl font-bold ${
-                financeFilter === "previous"
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              Mes anterior
-            </button>
-
-            <button
-              onClick={() => setFinanceFilter("custom")}
-              className={`px-4 py-2 rounded-xl font-bold ${
-                financeFilter === "custom"
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              Personalizado
-            </button>
+            {[
+              ["current", "Mes actual"],
+              ["previous", "Mes anterior"],
+              ["custom", "Personalizado"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setFinanceFilter(key)}
+                className={`rounded-2xl px-4 py-2.5 font-black transition ${
+                  financeFilter === key
+                    ? "bg-slate-950 text-white shadow-lg"
+                    : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
         {financeFilter === "custom" && (
-          <div className="grid md:grid-cols-2 gap-3 mb-5">
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
             <input
               type="date"
               value={financeStartDate}
-              onChange={(e) => setFinanceStartDate(e.target.value)}
-              className="border rounded-xl px-4 py-3"
+              onChange={(event) => setFinanceStartDate(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-500"
             />
 
             <input
               type="date"
               value={financeEndDate}
-              onChange={(e) => setFinanceEndDate(e.target.value)}
-              className="border rounded-xl px-4 py-3"
+              onChange={(event) => setFinanceEndDate(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-blue-500"
             />
           </div>
         )}
+      </section>
 
-        <StatsGrid
-          items={[
-            ["Ingresos brutos", money(grossIncome), "bg-green-50", "text-green-700"],
-            ["Descuentos Mercado Pago", money(mercadoPagoDiscounts), "bg-red-50", "text-red-700"],
-            ["Neto recibido", money(netReceived), "bg-blue-50", "text-blue-700"],
-            ["Costos mensuales", money(monthlyCosts), "bg-orange-50", "text-orange-700"],
-            [
-              "Ganancia estimada",
-              money(profit),
-              profit >= 0 ? "bg-purple-50" : "bg-red-50",
-              profit >= 0 ? "text-purple-700" : "text-red-700",
-            ],
-            ["Clientes pagos", paidClients, "bg-white", "text-slate-800"],
-            ["Punto equilibrio", breakEvenClients, "bg-amber-50", "text-amber-700"],
-            [
-              "Combinación actual",
-              `${standardPayments} estándar / ${premiumPayments} premium`,
-              "bg-slate-50",
-              "text-slate-800",
-            ],
-          ]}
-        />
-      </div>
+      <StatsGrid
+        items={[
+          [
+            "Ingresos brutos",
+            money(grossIncome),
+            "bg-emerald-50",
+            "text-emerald-700",
+            "income",
+          ],
+          [
+            "Comisión Mercado Pago",
+            money(mercadoPagoDiscounts),
+            "bg-red-50",
+            "text-red-700",
+            "commission",
+          ],
+          [
+            "Reserva automática 1%",
+            money(reserveCurrentMonth),
+            "bg-blue-50",
+            "text-blue-700",
+            "reserve",
+          ],
+          [
+            "Costos fijos",
+            money(monthlyCosts),
+            "bg-red-50",
+            "text-red-700",
+            "costs",
+          ],
+          [
+            "Disponible para distribuir",
+            money(availableAfterCosts),
+            "bg-blue-50",
+            "text-blue-700",
+            "available",
+          ],
+          [
+            "Margen disponible",
+            `${marginPercent}%`,
+            "bg-white",
+            "text-slate-900",
+            "margin",
+          ],
+          [
+            "Clientes pagos",
+            paidClients,
+            "bg-white",
+            "text-slate-900",
+            "clients",
+          ],
+          [
+            "Punto de equilibrio",
+            breakEvenClients,
+            "bg-blue-50",
+            "text-blue-700",
+            "target",
+          ],
+        ]}
+      />
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-3xl shadow p-6">
-          <h3 className="text-xl font-black mb-4">
-            Costos fijos mensuales
-          </h3>
+      <section className="grid gap-5 lg:grid-cols-3">
+        <article className="rounded-[26px] border border-blue-100 bg-blue-50 p-6">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-blue-700 shadow-sm">
+              <Megaphone size={23} />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600">
+                Publicidad y contenido
+              </p>
+              <h3 className="text-2xl font-black text-blue-950">50%</h3>
+            </div>
+          </div>
+          <p className="mt-5 text-3xl font-black text-blue-800">
+            {money(marketingAmount)}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-blue-700">
+            Reinversión destinada al crecimiento, campañas y creación de contenido.
+          </p>
+        </article>
 
-          <div className="grid md:grid-cols-2 gap-3">
-            {[
-              ["chatgpt", "ChatGPT"],
-              ["supabase", "Supabase"],
-              ["cloudflare", "Cloudflare"],
-              ["dominio", "Dominio mensual"],
-              ["publicidad", "Publicidad"],
-              ["otros", "Otros costos"],
-            ].map(([field, label]) => (
-              <label key={field} className="text-sm font-bold text-slate-700">
-                {label}
+        <article className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white">
+              <UserRound size={23} />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                Sueldo Luciano
+              </p>
+              <h3 className="text-2xl font-black text-slate-950">40%</h3>
+            </div>
+          </div>
+          <p className="mt-5 text-3xl font-black text-slate-900">
+            {money(lucianoSalary)}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Se calcula únicamente sobre el dinero sobrante luego de reserva y gastos.
+          </p>
+        </article>
+
+        <article className="rounded-[26px] border border-red-100 bg-red-50 p-6">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-red-600 shadow-sm">
+              <UserRound size={23} />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-red-500">
+                Sueldo Naila
+              </p>
+              <h3 className="text-2xl font-black text-red-950">10%</h3>
+            </div>
+          </div>
+          <p className="mt-5 text-3xl font-black text-red-700">
+            {money(nailaSalary)}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-red-600">
+            Participación automática calculada sobre el disponible final.
+          </p>
+        </article>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <article className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white">
+              <Receipt size={23} />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-red-500">
+                Costos convertidos a pesos
+              </p>
+              <h3 className="text-xl font-black text-slate-950">
+                Gastos fijos mensuales
+              </h3>
+            </div>
+          </div>
+
+          <p className="mb-5 text-sm leading-6 text-slate-500">
+            Para servicios cobrados en dólares, ingresá aquí el importe final
+            convertido a pesos cuando hagas la transferencia o el pago.
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {costFields.map(([field, label, helper]) => (
+              <label key={field}>
+                <span className="text-sm font-black text-slate-700">
+                  {label}
+                </span>
                 <input
                   type="number"
+                  min="0"
                   value={platformCosts?.[field] || ""}
-                  onChange={(e) => updateCostField(field, e.target.value)}
-                  className="mt-1 w-full border rounded-xl px-4 py-3"
+                  onChange={(event) =>
+                    updateCostField(field, event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
                   placeholder="0"
                 />
+                <span className="mt-1 block text-[11px] leading-5 text-slate-400">
+                  {helper}
+                </span>
               </label>
             ))}
           </div>
 
+          <label className="mt-5 block rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <span className="font-black text-blue-950">
+              Reserva acumulada anterior
+            </span>
+            <p className="mt-1 text-xs leading-5 text-blue-700">
+              Ingresá el dinero que ya estaba reservado antes de este período.
+            </p>
+            <input
+              type="number"
+              min="0"
+              value={platformCosts?.reserva_acumulada_anterior || ""}
+              onChange={(event) =>
+                updateCostField(
+                  "reserva_acumulada_anterior",
+                  event.target.value
+                )
+              }
+              className="mt-3 w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 font-bold text-blue-950 outline-none"
+              placeholder="0"
+            />
+          </label>
+
           <button
             onClick={savePlatformCosts}
             disabled={savingCosts}
-            className="mt-5 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black hover:bg-black transition disabled:opacity-50"
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 font-black text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
-            {savingCosts ? "Guardando..." : "Guardar costos"}
+            <Calculator size={19} />
+            {savingCosts ? "Guardando..." : "Guardar costos y reserva"}
           </button>
-        </div>
+        </article>
 
-        <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl shadow p-6 text-white">
-          <h3 className="text-xl font-black mb-4">
-            Punto de equilibrio por plan
-          </h3>
-
-          <div className="space-y-4">
-            <div className="bg-white/10 border border-white/20 rounded-2xl p-4">
-              <p className="text-purple-100 text-sm">Estándar</p>
-              <div className="flex justify-between mt-2">
-                <span>Neto estimado</span>
-                <b>{money(standardNet)}</b>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Clientes necesarios</span>
-                <b>{standardNeeded}</b>
+        <div className="space-y-5">
+          <article className="rounded-[26px] border border-blue-100 bg-gradient-to-br from-slate-950 to-blue-800 p-6 text-white shadow-xl">
+            <div className="flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10">
+                <PiggyBank size={23} />
+              </span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-200">
+                  Reserva empresarial
+                </p>
+                <h3 className="text-xl font-black">Fondo de seguridad</h3>
               </div>
             </div>
 
-            <div className="bg-amber-400 text-slate-950 rounded-2xl p-4">
-              <p className="text-sm font-bold">Premium</p>
-              <div className="flex justify-between mt-2">
-                <span>Neto estimado</span>
-                <b>{money(premiumNet)}</b>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Clientes necesarios</span>
-                <b>{premiumNeeded}</b>
+            <p className="mt-6 text-4xl font-black">
+              {money(reserveAccumulated)}
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4">
+              <p className="text-sm text-blue-100">
+                Con los costos actuales, la reserva cubriría aproximadamente:
+              </p>
+              <p className="mt-2 text-3xl font-black">
+                {monthsCovered.toFixed(1)} meses
+              </p>
+              <p className="mt-1 text-xs text-blue-200">
+                sin nuevos ingresos.
+              </p>
+            </div>
+          </article>
+
+          <article className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                <Target size={23} />
+              </span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-red-500">
+                  Punto de equilibrio
+                </p>
+                <h3 className="text-xl font-black text-slate-950">
+                  Clientes necesarios
+                </h3>
               </div>
             </div>
-          </div>
 
-          <p className="text-purple-100 text-sm mt-5">
-            Si Mercado Pago no informa monto liquidado exacto, se estima 8% de descuento.
-          </p>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between rounded-2xl bg-red-50 px-4 py-4">
+                <span className="font-bold text-red-700">Solo Estándar</span>
+                <b className="text-xl text-red-800">{standardNeeded}</b>
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-4">
+                <span className="font-bold text-blue-700">Solo Premium</span>
+                <b className="text-xl text-blue-800">{premiumNeeded}</b>
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                <span className="font-bold text-slate-600">
+                  Clientes pagos actuales
+                </span>
+                <b className="text-xl text-slate-950">{paidClients}</b>
+              </div>
+            </div>
+          </article>
         </div>
-      </div>
+      </section>
 
       <AdminTable title="Pagos aprobados del período">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left border-b">
+            <tr className="border-b text-left">
               <th className="p-3">Fecha</th>
               <th className="p-3">Plan</th>
               <th className="p-3">Precio</th>
@@ -1392,7 +1576,7 @@ function FinanceDashboard({
           <tbody>
             {approvedPayments.length === 0 && (
               <tr>
-                <td colSpan="6" className="p-3 text-gray-500">
+                <td colSpan="6" className="p-4 text-slate-500">
                   Todavía no hay pagos aprobados en este período.
                 </td>
               </tr>
@@ -1400,14 +1584,18 @@ function FinanceDashboard({
 
             {approvedPayments.map((payment) => {
               const commission =
-                payment.comision_mp !== null && payment.comision_mp !== undefined
+                payment.comision_mp !== null &&
+                payment.comision_mp !== undefined
                   ? Number(payment.comision_mp || 0)
-                  : payment.monto_liquidado !== null && payment.monto_liquidado !== undefined
-                  ? Number(payment.precio || 0) - Number(payment.monto_liquidado || 0)
-                  : Number(payment.precio || 0) * 0.08;
+                  : payment.monto_liquidado !== null &&
+                      payment.monto_liquidado !== undefined
+                    ? Number(payment.precio || 0) -
+                      Number(payment.monto_liquidado || 0)
+                    : Number(payment.precio || 0) * 0.08;
 
               const net =
-                payment.monto_liquidado !== null && payment.monto_liquidado !== undefined
+                payment.monto_liquidado !== null &&
+                payment.monto_liquidado !== undefined
                   ? Number(payment.monto_liquidado || 0)
                   : Number(payment.precio || 0) - commission;
 
@@ -1420,8 +1608,12 @@ function FinanceDashboard({
                   </td>
                   <td className="p-3 font-bold">{payment.plan}</td>
                   <td className="p-3">{money(payment.precio)}</td>
-                  <td className="p-3 text-red-600">{money(commission)}</td>
-                  <td className="p-3 text-green-700 font-bold">{money(net)}</td>
+                  <td className="p-3 font-bold text-red-600">
+                    {money(commission)}
+                  </td>
+                  <td className="p-3 font-black text-emerald-700">
+                    {money(net)}
+                  </td>
                   <td className="p-3">{payment.estado_pago}</td>
                 </tr>
               );
@@ -1429,6 +1621,17 @@ function FinanceDashboard({
           </tbody>
         </table>
       </AdminTable>
+
+      <section className="rounded-[24px] border border-blue-100 bg-blue-50 p-5 text-sm leading-6 text-blue-800">
+        <div className="flex items-start gap-3">
+          <ShieldCheck size={21} className="mt-0.5 shrink-0" />
+          <p>
+            La comisión se toma del valor real informado por Mercado Pago. Si
+            no existe ese dato, el sistema aplica una estimación automática del
+            8% sobre cada plan.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1443,47 +1646,52 @@ function MetricsDateFilter({
   setMetricsEndDate,
 }) {
   return (
-    <div className="bg-white rounded-2xl shadow p-4 mb-8 flex flex-wrap items-center gap-3">
-      <p className="font-black text-slate-800 mr-2">
-        📅 Filtrar métricas:
-      </p>
-
-      {[
-        ["today", "Hoy"],
-        ["week", "Esta semana"],
-        ["month", "Este mes"],
-        ["custom", "Entre fechas"],
-      ].map(([key, label]) => (
-        <button
-          key={key}
-          onClick={() => setMetricsFilter(key)}
-          className={`px-4 py-2 rounded-xl font-bold ${
-            metricsFilter === key
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-
-      {metricsFilter === "custom" && (
-        <div className="flex flex-wrap gap-2">
-          <input
-            type="date"
-            value={metricsStartDate}
-            onChange={(e) => setMetricsStartDate(e.target.value)}
-            className="border rounded-xl px-3 py-2"
-          />
-
-          <input
-            type="date"
-            value={metricsEndDate}
-            onChange={(e) => setMetricsEndDate(e.target.value)}
-            className="border rounded-xl px-3 py-2"
-          />
+    <div className="mb-7 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="mr-2">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-red-500">
+            Período
+          </p>
+          <p className="font-black text-slate-900">Filtrar métricas</p>
         </div>
-      )}
+
+        {[
+          ["today", "Hoy"],
+          ["week", "Esta semana"],
+          ["month", "Este mes"],
+          ["custom", "Entre fechas"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setMetricsFilter(key)}
+            className={`rounded-2xl px-4 py-2.5 font-black transition ${
+              metricsFilter === key
+                ? "bg-slate-950 text-white shadow-lg"
+                : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-blue-700"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+
+        {metricsFilter === "custom" && (
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="date"
+              value={metricsStartDate}
+              onChange={(e) => setMetricsStartDate(e.target.value)}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-blue-500"
+            />
+
+            <input
+              type="date"
+              value={metricsEndDate}
+              onChange={(e) => setMetricsEndDate(e.target.value)}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-blue-500"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1501,12 +1709,12 @@ function UpgradePlanCTA({ businesses, navigate }) {
   );
 
   return (
-    <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl p-6 text-white shadow-xl mb-8 border border-amber-300">
+    <div className="bg-gradient-to-r from-slate-950 to-blue-800 rounded-3xl p-6 text-white shadow-xl mb-8 border border-blue-300">
       <h2 className="text-2xl font-black mb-2">
         ✨ Potenciá tu negocio
       </h2>
 
-      <p className="text-purple-100 mb-4">
+      <p className="text-blue-100 mb-4">
         {hasFree
           ? "Pasá de Gratis a un plan pago y mostrá tu negocio con más fotos, redes, prioridad y mejor imagen."
           : "Subí a Premium y convertí tu vidriera en una mini página web profesional."}
@@ -1528,7 +1736,7 @@ function UpgradePlanCTA({ businesses, navigate }) {
 
       <button
         onClick={() => navigate("/planes")}
-        className="bg-amber-400 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-amber-300 transition"
+        className="bg-blue-600 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-blue-700 transition"
       >
         {hasFree ? "Pasar a un plan pago" : "Subir a Premium"}
       </button>
@@ -1536,183 +1744,105 @@ function UpgradePlanCTA({ businesses, navigate }) {
   );
 }
 
-function BannerCTA({ canCreateBanner, navigate, isAdmin = false }) {
+function DashboardMetricsHero({ people, views, whatsapp, conversion }) {
+  const cards = [
+    ["Personas", people, "Visitantes únicos"],
+    ["Vistas", views, "Vidrieras abiertas"],
+    ["WhatsApp", whatsapp, "Clics registrados"],
+    ["Conversión", conversion, "Vistas que contactaron"],
+  ];
+
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl mb-8">
-      <h2 className="text-2xl font-black mb-2">Banner regional destacado</h2>
+    <section className="relative mb-7 overflow-hidden rounded-[30px] bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 p-6 text-white shadow-[0_24px_65px_rgba(30,64,175,0.20)] md:p-8">
+      <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
 
-      <p className="text-purple-100 mb-4">
-        Mostrá tu negocio en los espacios principales de la plataforma y llevá visitantes directo a tu vidriera.
-      </p>
-
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="bg-white text-purple-700 px-5 py-3 rounded-2xl font-black">
-          {isAdmin ? "Gratis para admin" : "$50.000 / mes"}
+      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-red-300">
+            Rendimiento real
+          </p>
+          <h2 className="mt-2 text-3xl font-black">Estado de TusComercios</h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">
+            Personas cuenta visitantes únicos por día. Vistas y WhatsApp leen registros reales guardados en Supabase.
+          </p>
         </div>
 
-        <button
-          onClick={() =>
-            canCreateBanner ? navigate("/crear-banner") : navigate("/planes")
-          }
-          className="bg-white/20 border border-white/30 px-5 py-3 rounded-2xl font-bold hover:bg-white/30 transition"
-        >
-          {canCreateBanner ? "Crear / contratar banner" : "Mejorar mi plan"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function UserBanners({
-  banners,
-  navigate,
-  goToBannerBusiness,
-  cancelBanner,
-  toggleBannerActive,
-}) {
-  if (banners.length === 0) return null;
-
-  return (
-    <div className="bg-white rounded-3xl shadow p-6 mb-8">
-      <h2 className="text-2xl font-black mb-4">Mis banners</h2>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        {banners.map((banner) => (
-          <div key={banner.id} className="border rounded-2xl overflow-hidden bg-slate-50">
-            {banner.image && (
-              <img src={banner.image} alt={banner.title} className="w-full h-40 object-cover" />
-            )}
-
-            <div className="p-4">
-              <h3 className="font-black text-lg">{banner.title}</h3>
-
-              <p className="text-sm text-gray-500">
-                {banner.businesses?.negocio || "Sin negocio asociado"}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {cards.map(([label, value, helper]) => (
+            <div
+              key={label}
+              className="min-w-[125px] rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-center backdrop-blur"
+            >
+              <p className="text-2xl font-black">{value}</p>
+              <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100">
+                {label}
               </p>
-
-              <p className="text-sm mt-1">
-                Estado:{" "}
-                <b className={banner.active ? "text-green-600" : "text-red-600"}>
-                  {banner.active ? "Activo" : "Inactivo"}
-                </b>
-              </p>
-
-              <p className="text-sm mt-1">
-                Pago: <b>{banner.payment_status || "-"}</b>
-              </p>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                <button onClick={() => goToBannerBusiness(banner)} className="bg-gray-200 px-3 py-2 rounded-lg text-sm">
-                  Ver negocio
-                </button>
-
-                <button onClick={() => navigate(`/editar-banner/${banner.id}`)} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm">
-                  Editar
-                </button>
-
-                <button onClick={() => toggleBannerActive(banner.id, banner.active)} className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm">
-                  {banner.active ? "Pausar" : "Reactivar"}
-                </button>
-
-                {banner.payment_status !== "cancelled" && (
-                  <button onClick={() => cancelBanner(banner)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm">
-                    Dar de baja
-                  </button>
-                )}
-              </div>
+              <p className="mt-1 text-[10px] text-blue-200">{helper}</p>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function BannersTable({
-  banners,
-  navigate,
-  goToBannerBusiness,
-  toggleBannerActive,
-  cancelBanner,
-}) {
-  return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left border-b">
-          <th className="p-3">Imagen</th>
-          <th className="p-3">Título</th>
-          <th className="p-3">Negocio</th>
-          <th className="p-3">Ciudad</th>
-          <th className="p-3">Pago</th>
-          <th className="p-3">Activo</th>
-          <th className="p-3">Acciones</th>
-        </tr>
-      </thead>
+function getMetricIcon(label, iconKey) {
+  const key = String(iconKey || label || "").toLowerCase();
 
-      <tbody>
-        {banners.map((b) => (
-          <tr key={b.id} className="border-b">
-            <td className="p-3">
-              {b.image && (
-                <img src={b.image} alt={b.title} className="w-24 h-14 object-cover rounded-lg" />
-              )}
-            </td>
+  if (key.includes("negocio")) return Store;
+  if (key.includes("usuario") || key.includes("client")) return Users;
+  if (key.includes("gratis")) return BadgeCheck;
+  if (key.includes("estándar") || key.includes("standard")) return Star;
+  if (key.includes("premium")) return Crown;
+  if (key.includes("vista")) return Eye;
+  if (key.includes("whatsapp")) return MessageCircle;
+  if (key.includes("conversión") || key.includes("margen")) return Percent;
+  if (key.includes("ingreso") || key.includes("available")) return WalletCards;
+  if (key.includes("comisión") || key.includes("commission")) return CreditCard;
+  if (key.includes("costo")) return Receipt;
+  if (key.includes("equilibrio") || key.includes("target")) return Target;
+  if (key.includes("reserva")) return PiggyBank;
+  if (key.includes("ganancia")) return TrendingUp;
 
-            <td className="p-3 font-bold">{b.title || "-"}</td>
-            <td className="p-3">{b.businesses?.negocio || "Sin negocio"}</td>
-            <td className="p-3">{b.city || b.ciudad || "-"}</td>
-            <td className="p-3">{b.payment_status || "-"}</td>
-
-            <td className="p-3">
-              <button
-                onClick={() => toggleBannerActive(b.id, b.active)}
-                className={`px-3 py-1 rounded-lg font-bold ${
-                  b.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                {b.active ? "Activo" : "Inactivo"}
-              </button>
-            </td>
-
-            <td className="p-3 flex gap-2 flex-wrap">
-              <button onClick={() => goToBannerBusiness(b)} className="bg-gray-200 px-3 py-1 rounded-lg">
-                Ver negocio
-              </button>
-
-              <button onClick={() => navigate(`/editar-banner/${b.id}`)} className="bg-blue-600 text-white px-3 py-1 rounded-lg">
-                Editar
-              </button>
-
-              {b.payment_status !== "cancelled" && (
-                <button onClick={() => cancelBanner(b)} className="bg-red-500 text-white px-3 py-1 rounded-lg">
-                  Dar de baja
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  return CircleDollarSign;
 }
 
 function StatsGrid({ items }) {
   return (
-    <div className="grid md:grid-cols-4 gap-4 mb-8">
-      {items.map(([label, value, bg, color]) => (
-        <div key={label} className={`${bg} p-5 rounded-2xl shadow`}>
-          <p className="text-sm text-gray-500">{label}</p>
-          <p className={`text-3xl font-black ${color}`}>{value}</p>
-        </div>
-      ))}
+    <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {items.map(([label, value, bg, color, iconKey]) => {
+        const Icon = getMetricIcon(label, iconKey);
+
+        return (
+          <div
+            key={label}
+            className={`${bg} rounded-[24px] border border-slate-200/80 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(15,23,42,0.10)]`}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-200 bg-white text-blue-700 shadow-sm">
+                <Icon size={21} strokeWidth={2.2} />
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                Total
+              </span>
+            </div>
+
+            <p className={`text-3xl font-black ${color}`}>{value}</p>
+            <p className="mt-1 text-sm font-bold text-slate-600">{label}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function AdminBox({ title, children }) {
   return (
-    <div className="bg-white p-6 rounded-2xl shadow">
-      <h3 className="font-black text-lg mb-4">{title}</h3>
+    <div className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="h-10 w-2 rounded-full bg-blue-600" />
+        <h3 className="text-lg font-black text-slate-900">{title}</h3>
+      </div>
       {children}
     </div>
   );
@@ -1720,18 +1850,21 @@ function AdminBox({ title, children }) {
 
 function Row({ label, value }) {
   return (
-    <div className="flex justify-between border-b py-2 text-sm">
-      <span className="text-gray-500">{label}</span>
-      <b>{value}</b>
+    <div className="flex justify-between border-b border-slate-100 py-3 text-sm last:border-0">
+      <span className="font-medium text-slate-500">{label}</span>
+      <b className="text-slate-900">{value}</b>
     </div>
   );
 }
 
 function AdminTable({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow overflow-x-auto">
-      <div className="p-5 border-b">
-        <h2 className="text-xl font-black">{title}</h2>
+    <div className="overflow-x-auto rounded-[26px] border border-slate-200 bg-white shadow-[0_14px_35px_rgba(15,23,42,0.06)]">
+      <div className="border-b border-slate-100 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-red-500">
+          Gestión
+        </p>
+        <h2 className="mt-1 text-xl font-black text-slate-900">{title}</h2>
       </div>
       <div className="min-w-[900px]">{children}</div>
     </div>
@@ -1820,12 +1953,12 @@ function AdminGrowthMetrics({
         ]}
       />
 
-      <div className="bg-gradient-to-r from-slate-950 to-purple-900 rounded-3xl p-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-slate-950 to-blue-800 rounded-3xl p-6 text-white shadow-xl">
         <h2 className="text-2xl font-black mb-2">
           Comparativa para vender planes
         </h2>
 
-        <p className="text-purple-100 mb-6">
+        <p className="text-blue-100 mb-6">
           Usá estos datos para mostrar por qué conviene pasar de Gratis a Estándar o Premium.
         </p>
 
@@ -1837,7 +1970,7 @@ function AdminGrowthMetrics({
 
         <button
           onClick={() => navigate("/planes")}
-          className="mt-6 bg-amber-400 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-amber-300 transition"
+          className="mt-6 bg-blue-600 text-slate-950 px-6 py-3 rounded-2xl font-black hover:bg-blue-700 transition"
         >
           Ver planes
         </button>
@@ -1899,7 +2032,7 @@ function PlanStatsCard({ title, stats, highlight = false }) {
     <div
       className={`rounded-3xl p-5 border ${
         highlight
-          ? "bg-amber-400 text-slate-950 border-amber-300"
+          ? "bg-blue-600 text-slate-950 border-blue-300"
           : "bg-white/10 border-white/20"
       }`}
     >
@@ -2099,11 +2232,11 @@ function BusinessCards({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/generar-reel/${b.id}`);
+                    navigate(`/studio?business=${b.id}`);
                   }}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-xl font-black hover:from-purple-700 hover:to-blue-700 transition"
                 >
-                  🚀 Crear contenido para redes
+                  TusComercios Studio
                 </button>
 
                 <button
@@ -2122,7 +2255,7 @@ function BusinessCards({
                       e.stopPropagation();
                       cancelBusinessPlan(b);
                     }}
-                    className="flex-1 bg-orange-500 text-white py-3 rounded-xl text-sm hover:bg-orange-600"
+                    className="flex-1 bg-red-500 text-white py-3 rounded-xl text-sm hover:bg-orange-600"
                   >
                     Cancelar plan
                   </button>
@@ -2295,7 +2428,7 @@ function AdminAnalytics({
           ["Visitas hoy", pageViewsToday, "bg-blue-50", "text-blue-700"],
           ["Búsquedas hoy", searchesToday, "bg-purple-50", "text-purple-700"],
           ["Interés publicar", publishClicksToday, "bg-green-50", "text-green-700"],
-          ["Panel hoy", dashboardClicksToday, "bg-orange-50", "text-orange-700"],
+          ["Panel hoy", dashboardClicksToday, "bg-red-50", "text-red-700"],
         ]}
       />
 

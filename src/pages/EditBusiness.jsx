@@ -67,9 +67,20 @@ export default function EditBusiness() {
   // 📸 SUBIR IMÁGENES
   const uploadImages = async () => {
     let urls = [];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
+    }
 
     for (let file of images) {
-      const fileName = `${Date.now()}-${file.name}`;
+      const safeName = String(file.name || "imagen")
+        .replace(/\s+/g, "-")
+        .replace(/[^\w.-]/g, "")
+        .toLowerCase();
+      const fileName = `${user.id}/${Date.now()}-${safeName}`;
 
       const { error } = await supabase.storage
         .from("business-images")

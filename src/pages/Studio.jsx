@@ -1,171 +1,653 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import Layout from "../components/Layout";
-
-import StudioHeader from "../components/studio/StudioHeader";
-import StudioTemplates from "../components/studio/StudioTemplates";
-import StudioCounters from "../components/studio/StudioCounters";
-import StudioBusinessList from "../components/studio/StudioBusinessList";
 import StudioLibrary from "../components/studio/StudioLibrary";
-import StudioSidebar from "../components/studio/StudioSidebar";
-import StudioColleague from "../components/studio/StudioColleague";
+import StudioWorkspaceSelector from "../components/studio/StudioWorkspaceSelector";
+
+const PLAN_LIMITS = {
+  standard: { image: 10, reel: 1 },
+  premium: { image: 20, reel: 2 },
+};
 
 export default function Studio() {
   const navigate = useNavigate();
 
+  const [workspaces, setWorkspaces] = useState([]);
   const [businesses, setBusinesses] = useState([]);
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
-  const [usage, setUsage] = useState({ image: 0, reel: 0, story: 0 });
-  const [activeSection, setActiveSection] = useState("inicio");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [usage, setUsage] = useState({ image: 0, reel: 0 });
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingUsage, setLoadingUsage] = useState(false);
 
   useEffect(() => {
-    loadBusinesses();
+    loadStudio();
   }, []);
 
   useEffect(() => {
-    if (selectedBusiness) {
-      loadUsage(selectedBusiness.id);
+    if (
+      selectedItem?.entityType === "business" &&
+      selectedItem?.id
+    ) {
+      loadDailyUsage(selectedItem.id);
+    } else {
+      setUsage({ image: 0, reel: 0 });
     }
-  }, [selectedBusiness]);
+  }, [selectedItem?.id, selectedItem?.entityType]);
 
-  async function loadBusinesses() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const isWorkspace = selectedItem?.entityType === "workspace";
+  const unlimited = isAdmin || isWorkspace;
 
-    if (!user) {
-      navigate("/login");
-      return;
+  const limits = useMemo(() => {
+    if (unlimited) {
+      return {
+        image: Infinity,
+        reel: Infinity,
+      };
     }
 
-    const { data, error } = await supabase
-      .from("businesses")
-      .select("id, negocio, slug, plan, image, ciudad, rubro")
-      .eq("user_id", user.id);
+    const plan = String(
+      selectedItem?.plan || "standard"
+    ).toLowerCase();
 
-    if (error) {
+    return PLAN_LIMITS[plan] || PLAN_LIMITS.standard;
+  }, [selectedItem?.plan, unlimited]);
+
+  const imageRemaining = unlimited
+    ? Infinity
+    : Math.max(0, limits.image - usage.image);
+
+  const reelRemaining = unlimited
+    ? Infinity
+    : Math.max(0, limits.reel - usage.reel);
+
+  async function loadStudio() {
+    try {
+      setLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const admin =
+        String(profile?.role || "").toLowerCase() === "admin";
+
+      setIsAdmin(admin);
+
+      const businessPromise = supabase
+        .from("businesses")
+        .select(
+          "id, negocio, slug, plan, image, ciudad, rubro, user_id"
+        )
+        .eq("user_id", user.id)
+        .order("negocio", { ascending: true });
+
+      const workspacePromise = admin
+        ? supabase
+          .from("studio_workspaces")
+          .select("*")
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: true })
+        : Promise.resolve({
+          data: [],
+          error: null,
+        });
+
+      const [businessResult, workspaceResult] =
+        await Promise.all([
+          businessPromise,
+          workspacePromise,
+        ]);
+
+      if (businessResult.error) {
+        console.error(businessResult.error);
+      }
+
+      if (workspaceResult.error) {
+        console.error(workspaceResult.error);
+      }
+
+      const ownBusinesses =
+        businessResult.data || [];
+
+      const visibleBusinesses = admin
+        ? ownBusinesses
+        : ownBusinesses.filter((business) => {
+          const plan = String(
+            business.plan || ""
+          ).toLowerCase();
+
+          return (
+            plan === "standard" ||
+            plan === "premium"
+          );
+        });
+
+      const ownWorkspaces = admin
+        ? workspaceResult.data || []
+        : [];
+
+      setBusinesses(visibleBusinesses);
+      setWorkspaces(ownWorkspaces);
+
+      if (ownWorkspaces.length > 0) {
+        setSelectedItem({
+          ...ownWorkspaces[0],
+          entityType: "workspace",
+        });
+      } else if (visibleBusinesses.length > 0) {
+        setSelectedItem({
+          ...visibleBusinesses[0],
+          entityType: "business",
+        });
+      } else {
+        setSelectedItem(null);
+      }
+    } catch (error) {
       console.error(error);
+      setWorkspaces([]);
       setBusinesses([]);
+      setSelectedItem(null);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const allowed = (data || []).filter(
-      (b) => b.plan === "standard" || b.plan === "premium"
-    );
-
-    setBusinesses(allowed);
-    setSelectedBusiness(allowed[0] || null);
-    setLoading(false);
   }
 
-  async function loadUsage(businessId) {
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - 6);
-    startOfWeek.setHours(0, 0, 0, 0);
+  async function loadDailyUsage(businessId) {
+    try {
+      setLoadingUsage(true);
 
-    const { data, error } = await supabase
-      .from("studio_usage")
-      .select("content_type")
-      .eq("business_id", businessId)
-      .gte("created_at", startOfWeek.toISOString());
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
 
-    if (error) {
-      console.error(error);
-      setUsage({ image: 0, reel: 0, story: 0 });
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+
+      const { data, error } = await supabase
+        .from("studio_usage")
+        .select("content_type")
+        .eq("business_id", businessId)
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString());
+
+      if (error) {
+        console.error(error);
+        setUsage({
+          image: 0,
+          reel: 0,
+        });
+        return;
+      }
+
+      const counts = {
+        image: 0,
+        reel: 0,
+      };
+
+      (data || []).forEach((item) => {
+        if (item.content_type === "image") {
+          counts.image += 1;
+        }
+
+        if (item.content_type === "reel") {
+          counts.reel += 1;
+        }
+      });
+
+      setUsage(counts);
+    } finally {
+      setLoadingUsage(false);
+    }
+  }
+
+  function openBrandKit() {
+    if (!selectedItem) return;
+
+    navigate(
+      `/studio/brand/${isWorkspace ? "workspace" : "business"
+      }/${selectedItem.id}`
+    );
+  }
+
+  function openMentor() {
+    if (!selectedItem) return;
+
+    const plan = String(
+      selectedItem?.plan || "standard"
+    ).toLowerCase();
+
+    if (
+      !isAdmin &&
+      !isWorkspace &&
+      plan !== "standard" &&
+      plan !== "premium"
+    ) {
+      alert(
+        "Mentor IA está disponible en los planes Estándar y Premium."
+      );
       return;
     }
 
-    const counts = { image: 0, reel: 0, story: 0 };
+    navigate(
+      `/studio/mentor/${isWorkspace ? "workspace" : "business"
+      }/${selectedItem.id}`
+    );
+  }
 
-    (data || []).forEach((item) => {
-      if (counts[item.content_type] !== undefined) {
-        counts[item.content_type] += 1;
-      }
-    });
+  function openImageEditor() {
+    if (!selectedItem) return;
 
-    setUsage(counts);
+    if (
+      !isAdmin &&
+      !isWorkspace &&
+      imageRemaining <= 0
+    ) {
+      alert(
+        "Alcanzaste el límite diario de imágenes."
+      );
+      return;
+    }
+
+    navigate(
+      `/studio/imagen/${isWorkspace ? "workspace" : "business"
+      }/${selectedItem.id}`
+    );
+  }
+
+  function openReelEditor() {
+    if (!selectedItem) return;
+
+    if (
+      !isAdmin &&
+      !isWorkspace &&
+      reelRemaining <= 0
+    ) {
+      alert(
+        "Alcanzaste el límite diario de reels."
+      );
+      return;
+    }
+
+    navigate(
+      `/generar-reel/${isWorkspace ? "workspace" : "business"
+      }/${selectedItem.id}`
+    );
   }
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-slate-100">
-          <div className="bg-white rounded-3xl shadow p-8 font-bold">
-            Cargando TusComercios Studio...
+        <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+          <div className="rounded-[2rem] bg-white p-8 text-center shadow-xl">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+
+            <p className="mt-5 text-xl font-black text-slate-950">
+              Cargando TusComercios Studio...
+            </p>
           </div>
         </div>
       </Layout>
     );
   }
 
+  const hasItems =
+    workspaces.length > 0 ||
+    businesses.length > 0;
+
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-100 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-[260px_1fr] gap-6">
-            <div className="lg:sticky lg:top-6 h-fit">
-              <StudioSidebar
-                active={activeSection}
-                setActive={setActiveSection}
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#f1f5f9_100%)]">
+        <div className="mx-auto max-w-7xl space-y-5 p-3 pb-10 sm:p-4 md:p-6">
+          <Hero
+            selectedItem={selectedItem}
+            isAdmin={isAdmin}
+          />
+
+          {!hasItems ? (
+            <EmptyState
+              isAdmin={isAdmin}
+              onPlans={() =>
+                navigate("/planes")
+              }
+            />
+          ) : (
+            <>
+              <StudioWorkspaceSelector
+                workspaces={workspaces}
+                businesses={businesses}
+                selectedItem={selectedItem}
+                onSelect={setSelectedItem}
+                isAdmin={isAdmin}
               />
-            </div>
 
-            <main className="space-y-6">
-              <StudioHeader />
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Paso 1"
+                  title="Definí la identidad de tu negocio"
+                  description="Configurá una sola vez el logo, los colores y las tipografías que Studio usará en tu contenido."
+                />
 
-              {businesses.length === 0 ? (
-                <section className="bg-white rounded-[2rem] shadow p-8 text-center border border-slate-100">
-                  <div className="text-5xl mb-4">🔒</div>
+                <JourneyCard
+                  step="1"
+                  title="Brand Kit"
+                  description={
+                    isWorkspace
+                      ? "Configurá la identidad institucional de TusComercios."
+                      : "Configurá el logo, los colores y las tipografías del comercio."
+                  }
+                  action="Configurar Brand Kit"
+                  gradient="from-blue-600 to-indigo-700"
+                  onClick={openBrandKit}
+                />
+              </section>
 
-                  <h2 className="text-2xl font-black mb-3">
-                    Studio está disponible para Estándar y Premium
-                  </h2>
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Paso 2"
+                  title="Planeá qué contenido crear"
+                  description="Pedile a Mentor IA ideas, promociones, campañas y orientación para usar Studio."
+                />
 
-                  <p className="text-gray-500 mb-6 max-w-2xl mx-auto">
-                    Cuando tu negocio tenga un plan pago, vas a poder acceder a
-                    herramientas para crear contenido profesional.
-                  </p>
+                <JourneyCard
+                  step="2"
+                  title="Mentor IA"
+                  description="Recibí ideas para vender más, crear promociones y preparar imágenes o reels."
+                  action="Hablar con Mentor IA"
+                  gradient="from-violet-600 to-fuchsia-700"
+                  onClick={openMentor}
+                />
+              </section>
 
-                  <button
-                    onClick={() => navigate("/planes")}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black hover:bg-blue-700 transition"
-                  >
-                    Ver planes
-                  </button>
-                </section>
-              ) : (
-                <>
-                  <StudioBusinessList
-                    businesses={businesses}
-                    selectedBusiness={selectedBusiness}
-                    setSelectedBusiness={setSelectedBusiness}
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Paso 3"
+                  title="Creá tu contenido"
+                  description={
+                    isWorkspace
+                      ? "Diseñá contenido institucional para promocionar TusComercios."
+                      : "Usá la identidad de tu Brand Kit para crear contenido del comercio."
+                  }
+                />
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <ToolCard
+                    type="image"
+                    title="Crear imágenes"
+                    description={
+                      isWorkspace
+                        ? "Diseños institucionales y campañas de TusComercios."
+                        : "Posts, promociones y novedades para redes."
+                    }
+                    used={usage.image}
+                    limit={limits.image}
+                    remaining={imageRemaining}
+                    unlimited={unlimited}
+                    loading={loadingUsage}
+                    onClick={openImageEditor}
                   />
 
-                  <StudioCounters
-                    selectedBusiness={selectedBusiness}
-                    usage={usage}
+                  <ToolCard
+                    type="reel"
+                    title="Crear reels"
+                    description={
+                      isWorkspace
+                        ? "Capturas, recorridos y campañas reales de la plataforma."
+                        : "Videos verticales con escenas, textos, audio y transiciones."
+                    }
+                    used={usage.reel}
+                    limit={limits.reel}
+                    remaining={reelRemaining}
+                    unlimited={unlimited}
+                    loading={loadingUsage}
+                    onClick={openReelEditor}
                   />
+                </div>
+              </section>
 
-                  <StudioColleague
-                    business={selectedBusiness}
-                    navigate={navigate}
-                  />
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Paso 4"
+                  title="Biblioteca"
+                  description="Acá vas a encontrar el contenido creado y guardado en Studio."
+                />
 
-                  <StudioTemplates
-                    setIdea={() => {}}
-                    setSelectedFormat={() => {}}
-                  />
-
-                  <StudioLibrary />
-                </>
-              )}
-            </main>
-          </div>
+                <StudioLibrary
+                  selectedItem={selectedItem}
+                />
+              </section>
+            </>
+          )}
         </div>
       </div>
     </Layout>
+  );
+}
+
+function Hero({
+  selectedItem,
+  isAdmin,
+}) {
+  const workspace =
+    selectedItem?.entityType === "workspace";
+
+  const name = workspace
+    ? selectedItem?.name
+    : selectedItem?.negocio;
+
+  return (
+    <header className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-900 p-6 text-white shadow-2xl">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-200">
+        {isAdmin
+          ? "Panel administrador"
+          : "Departamento de marketing"}
+      </p>
+
+      <h1 className="mt-3 text-3xl font-black md:text-5xl">
+        TusComercios Studio
+      </h1>
+
+      <p className="mt-3 max-w-3xl font-semibold leading-7 text-blue-100">
+        Creá la identidad, planificá con Mentor IA y diseñá contenido profesional para tu negocio.
+      </p>
+
+      {selectedItem && (
+        <div className="mt-5 inline-flex rounded-2xl bg-white/10 px-4 py-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">
+              {workspace
+                ? "Espacio activo"
+                : "Comercio activo"}
+            </p>
+
+            <p className="mt-1 text-lg font-black">
+              {name}
+            </p>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}) {
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+        {eyebrow}
+      </p>
+
+      <h2 className="mt-1 text-2xl font-black text-slate-950 md:text-3xl">
+        {title}
+      </h2>
+
+      <p className="mt-2 max-w-3xl font-semibold leading-7 text-slate-500">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function JourneyCard({
+  step,
+  title,
+  description,
+  action,
+  gradient,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full overflow-hidden rounded-[2rem] border border-white bg-white text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl"
+    >
+      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} text-xl font-black text-white shadow-lg`}
+          >
+            {step}
+          </div>
+
+          <div>
+            <h3 className="text-2xl font-black text-slate-950">
+              {title}
+            </h3>
+
+            <p className="mt-2 max-w-3xl font-semibold leading-7 text-slate-500">
+              {description}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-center text-sm font-black text-white transition group-hover:bg-blue-700">
+          {action} →
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ToolCard({
+  type,
+  title,
+  description,
+  used,
+  limit,
+  remaining,
+  unlimited,
+  loading,
+  onClick,
+}) {
+  const image = type === "image";
+
+  const gradient = image
+    ? "from-blue-600 to-indigo-600"
+    : "from-violet-600 to-fuchsia-600";
+
+  const percent = unlimited
+    ? 0
+    : Math.min(100, Math.round((used / limit) * 100));
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className="rounded-[2rem] border border-white bg-white p-6 text-left shadow-xl transition hover:-translate-y-1 hover:shadow-2xl disabled:opacity-60"
+    >
+      <div
+        className={`inline-flex rounded-2xl bg-gradient-to-r ${gradient} px-4 py-3 font-black text-white`}
+      >
+        {title}
+      </div>
+
+      <p className="mt-4 font-semibold leading-7 text-slate-600">
+        {description}
+      </p>
+
+      {!unlimited && (
+        <div className="mt-6">
+          <div className="mb-2 flex justify-between text-xs font-black text-slate-500">
+            <span>Uso de hoy</span>
+            <span>
+              {used} / {limit}
+            </span>
+          </div>
+
+          <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className={`h-full rounded-full bg-gradient-to-r ${gradient}`}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <p className="mt-5 text-sm font-black text-emerald-600">
+        {unlimited
+          ? `Uso ilimitado · ${used} creados hoy`
+          : `${remaining} disponibles hoy`}
+      </p>
+    </button>
+  );
+}
+
+function LibraryComingSoon() {
+  return (
+    <section className="rounded-[2rem] border border-dashed border-slate-300 bg-white/70 p-7 text-center shadow-lg">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+        📚
+      </div>
+
+      <h3 className="mt-4 text-2xl font-black text-slate-950">
+        Próximamente
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-2xl font-semibold leading-7 text-slate-500">
+        La Biblioteca permitirá guardar, organizar y reutilizar las imágenes y los reels creados en Studio.
+      </p>
+    </section>
+  );
+}
+
+function EmptyState({
+  isAdmin,
+  onPlans,
+}) {
+  return (
+    <section className="rounded-[2rem] bg-white p-8 text-center shadow-xl">
+      <h2 className="text-2xl font-black text-slate-950">
+        {isAdmin
+          ? "No se encontró el workspace ni comercios"
+          : "Studio requiere un plan pago"}
+      </h2>
+
+      {!isAdmin && (
+        <button
+          type="button"
+          onClick={onPlans}
+          className="mt-5 rounded-2xl bg-blue-600 px-6 py-3 font-black text-white"
+        >
+          Ver planes
+        </button>
+      )}
+    </section>
   );
 }

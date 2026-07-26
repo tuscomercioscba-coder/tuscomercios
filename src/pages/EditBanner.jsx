@@ -100,6 +100,14 @@ export default function EditBanner() {
   }
 
   async function uploadImage(file) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
+    }
+
     const optimizedFile = await optimizeImage(file);
 
     const cleanName = optimizedFile.name
@@ -107,7 +115,7 @@ export default function EditBanner() {
       .replace(/[^\w.-]/g, "")
       .toLowerCase();
 
-    const fileName = `banner-${Date.now()}-${cleanName}`;
+    const fileName = `${user.id}/banner-${Date.now()}-${cleanName}`;
 
     const { error } = await supabase.storage
       .from("business-images")
@@ -166,24 +174,37 @@ export default function EditBanner() {
 
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("banners")
-      .update({
-        active: false,
-        payment_status: "cancelled",
-        cancelled_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (error) {
+      if (!session?.access_token) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const response = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ banner_id: id }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || "No se pudo cancelar el banner");
+      }
+
+      alert("Banner dado de baja correctamente");
+      window.location.href = "/dashboard";
+    } catch (error) {
       console.error(error);
-      alert("Error dando de baja");
-      return;
+      alert(error.message || "Error dando de baja");
     }
-
-    alert("Banner dado de baja correctamente");
-
-    window.location.href = "/dashboard";
   }
 
   if (!banner) {

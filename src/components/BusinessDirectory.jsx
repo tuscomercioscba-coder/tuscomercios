@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
+import {
+  normalizeSearchText,
+  smartFieldScore,
+  smartTextMatches,
+} from "../search/utils/smartSearch";
 
 export default function BusinessDirectory() {
   const [businesses, setBusinesses] = useState([]);
@@ -53,12 +58,7 @@ export default function BusinessDirectory() {
   }, []);
 
   function normalizeText(text) {
-    return text
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
+    return normalizeSearchText(text);
   }
 
   function normalizePlan(plan) {
@@ -197,12 +197,15 @@ export default function BusinessDirectory() {
       const provincia = normalizeText(b.provincia || "");
       const keywords = normalizeText((b.keywords || []).join(" "));
 
-      if (rubro === search) score += 20;
-      if (rubro.includes(search)) score += 12;
-      if (negocio.includes(search)) score += 10;
-      if (keywords.includes(search)) score += 8;
-      if (descripcion.includes(search)) score += 5;
-      if (ciudadText.includes(search) || provincia.includes(search)) score += 2;
+      score += smartFieldScore(rubro, search, { exact: 24, phrase: 16, words: 12 });
+      score += smartFieldScore(negocio, search, { exact: 20, phrase: 14, words: 10 });
+      score += smartFieldScore(keywords, search, { exact: 16, phrase: 12, words: 9 });
+      score += smartFieldScore(descripcion, search, { exact: 10, phrase: 8, words: 5 });
+      score += smartFieldScore(`${ciudadText} ${provincia}`, search, {
+        exact: 5,
+        phrase: 3,
+        words: 2,
+      });
     }
 
     if (userLocation && b.lat && b.lng) {
@@ -227,7 +230,7 @@ export default function BusinessDirectory() {
 
         const text = getSearchText(b);
 
-        return text.includes(search);
+        return smartTextMatches(text, search);
       })
       .filter((b) => {
         if (!city) return true;

@@ -1,0 +1,18 @@
+.search-directory__results { width: 100%; }
+
+.search-directory__error {
+  margin: 26px 0;
+  padding: 18px;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: #fef2f2;
+  color: #991b1b;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+@media (max-width: 480px) {
+  .search-section__header { flex-direction: column; }
+  .search-section__count { align-self: flex-start; }
+}

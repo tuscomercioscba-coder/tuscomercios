@@ -10,6 +10,7 @@ async function generateSitemap() {
   const { data: businesses, error } = await supabase
     .from("businesses")
     .select("slug")
+    .eq("status", "published")
     .not("slug", "is", null);
 
   if (error) {
@@ -19,11 +20,12 @@ async function generateSitemap() {
 
   const urls = (businesses || [])
     .filter((b) => b.slug)
-    .map(
-      (b) => `  <url>
-    <loc>https://tuscomercios.com.ar/${b.slug}</loc>
+    .map((b) => {
+      const safeSlug = encodeURIComponent(String(b.slug).trim());
+      return `  <url>
+    <loc>https://tuscomercios.com.ar/${safeSlug}</loc>
   </url>`
-    )
+    })
     .join("\n");
 
   const sitemap =

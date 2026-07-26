@@ -22,6 +22,7 @@ export default function BusinessView() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [canPreviewDraft, setCanPreviewDraft] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+  const [shouldTrackMetrics, setShouldTrackMetrics] = useState(true);
 
   useEffect(() => {
     getBusiness();
@@ -153,11 +154,17 @@ export default function BusinessView() {
 
     const isOwner = Boolean(user?.id && data?.user_id && user.id === data.user_id);
     const canSeeDraft = isOwner || isAdmin;
+    const canTrackMetrics = !isOwner && !isAdmin;
 
     setCanPreviewDraft(canSeeDraft);
+    setShouldTrackMetrics(canTrackMetrics);
     setBusiness(data);
 
-    if (data?.id && (data.status || "published") === "published") {
+    if (
+      canTrackMetrics &&
+      data?.id &&
+      (data.status || "published") === "published"
+    ) {
       await registerView(data.id);
     }
 
@@ -349,6 +356,7 @@ export default function BusinessView() {
 
   async function handleWhatsappClick() {
     if ((business.status || "published") !== "published") return;
+    if (!shouldTrackMetrics) return;
     await registerWhatsappClick(business.id);
   }
 

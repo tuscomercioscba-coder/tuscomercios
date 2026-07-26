@@ -127,7 +127,7 @@ export default function RegisterBanner() {
     }
   }
 
-  async function uploadImage(file) {
+  async function uploadImage(file, userId) {
     const optimizedFile = await optimizeImage(file);
 
     const cleanName = optimizedFile.name
@@ -135,7 +135,7 @@ export default function RegisterBanner() {
       .replace(/[^\w.-]/g, "")
       .toLowerCase();
 
-    const fileName = `banner-${Date.now()}-${cleanName}`;
+    const fileName = `${userId}/banner-${Date.now()}-${cleanName}`;
 
     const { error } = await supabase.storage
       .from("business-images")
@@ -154,16 +154,23 @@ export default function RegisterBanner() {
     return data.publicUrl;
   }
 
-  async function createMercadoPagoBannerSubscription({ user, bannerId }) {
-    const response = await fetch("/./api/create-subscription", {
+  async function createMercadoPagoBannerSubscription({ bannerId }) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("Tu sesión venció. Volvé a iniciar sesión.");
+    }
+
+    const response = await fetch("/api/create-subscription", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         type: "banner",
-        user_id: user.id,
-        email: user.email,
         banner_id: bannerId,
       }),
     });
@@ -229,7 +236,7 @@ export default function RegisterBanner() {
         return;
       }
 
-      const imageUrl = await uploadImage(imageFile);
+      const imageUrl = await uploadImage(imageFile, user.id);
 
       const payload = {
         business_id: business.id,
@@ -268,7 +275,6 @@ export default function RegisterBanner() {
       }
 
       await createMercadoPagoBannerSubscription({
-        user,
         bannerId: insertedBanner.id,
       });
     } catch (err) {
