@@ -23,6 +23,7 @@ import {
   ELEMENT_TYPES,
   FORMAT_SIZES,
   ImageLibraryPanel,
+  MODERN_ICON_PATHS,
   ElementsLibraryPanel,
   SafeAreaPanel,
   SocialResizePanel,
@@ -103,17 +104,36 @@ export default function StudioImage() {
     if (!container || !project) return;
 
     const updateFit = () => {
-      const available = Math.max(280, container.clientWidth - 28);
-      setZoom(Math.max(0.18, Math.min(1, available / project.width)));
+      const availableWidth = Math.max(280, container.clientWidth - 28);
+      const availableHeight = Math.max(
+        260,
+        container.clientHeight > 160
+          ? container.clientHeight - 28
+          : window.innerHeight - container.getBoundingClientRect().top - 32
+      );
+      setZoom(
+        Math.max(
+          0.18,
+          Math.min(
+            1,
+            availableWidth / project.width,
+            availableHeight / project.height
+          )
+        )
+      );
     };
 
     updateFit();
 
     const observer = new ResizeObserver(updateFit);
     observer.observe(container);
+    window.addEventListener("resize", updateFit);
 
-    return () => observer.disconnect();
-  }, [project?.width]);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateFit);
+    };
+  }, [project?.width, project?.height]);
 
   const draftKey = `${entityType}:${id}`;
 
@@ -483,8 +503,48 @@ export default function StudioImage() {
     setSelectedId(element.id);
   }
 
-  function addIcon(icon) { const element = createElement(ELEMENT_TYPES.ICON, { name: icon.label, symbol: icon.symbol, x: 180, y: 180, width: 170, height: 170, fill: "#ffffff", fontSize: 140 }); setProject(c => ({ ...c, elements: [...c.elements, element] })); setSelectedId(element.id); }
-  function addSticker(sticker) { const element = createElement(ELEMENT_TYPES.STICKER, { name: sticker.label, text: sticker.text, fill: sticker.fill, color: sticker.color, x: 160, y: 180, width: 300, height: 100 }); setProject(c => ({ ...c, elements: [...c.elements, element] })); setSelectedId(element.id); }
+  function addIcon(icon) {
+    const element = createElement(ELEMENT_TYPES.ICON, {
+      name: icon.label,
+      symbol: icon.symbol,
+      path: icon.path,
+      x: 180,
+      y: 180,
+      width: 170,
+      height: 170,
+      fill: "#ffffff",
+      fontSize: 140,
+      strokeWidth: 1.8,
+    });
+    setProject((current) => ({
+      ...current,
+      elements: [...current.elements, element],
+    }));
+    setSelectedId(element.id);
+  }
+
+  function addSticker(sticker) {
+    const element = createElement(ELEMENT_TYPES.STICKER, {
+      name: sticker.label,
+      text: sticker.text,
+      fill: sticker.fill,
+      color: sticker.color,
+      cornerRadius: sticker.cornerRadius,
+      stroke: sticker.stroke,
+      strokeWidth: sticker.strokeWidth,
+      x: 160,
+      y: 180,
+      width: 360,
+      height: 105,
+      rotation: 0,
+      shadowEnabled: true,
+    });
+    setProject((current) => ({
+      ...current,
+      elements: [...current.elements, element],
+    }));
+    setSelectedId(element.id);
+  }
   function addLine() { const element = createElement(ELEMENT_TYPES.LINE, { name: "Línea", x: 180, y: 240, width: 420, height: 8, fill: "#ffffff" }); setProject(c => ({ ...c, elements: [...c.elements, element] })); setSelectedId(element.id); }
 
   function duplicateSelected() {
@@ -548,29 +608,340 @@ export default function StudioImage() {
   }
 
   function applyTemplate(template) {
-    setProject((current) => ({
-      ...current,
-      background: template.background,
-      elements: current.elements.map((element) => {
-        if (element.id === "title") {
-          return {
-            ...element,
-            text: template.title,
-            fill: template.titleColor,
-          };
-        }
+    setProject((current) => {
+      const { width, height } = current;
+      const originalImage =
+        current.elements.find((element) => element.id === "main-image") ||
+        createElement(ELEMENT_TYPES.IMAGE, { id: "main-image" });
+      const originalTitle =
+        current.elements.find((element) => element.id === "title") ||
+        createElement(ELEMENT_TYPES.TEXT, { id: "title" });
+      const originalSubtitle =
+        current.elements.find((element) => element.id === "subtitle") ||
+        createElement(ELEMENT_TYPES.TEXT, { id: "subtitle" });
+      const logo = current.elements.find((element) => element.id === "logo");
+      const extraElements = current.elements.filter(
+        (element) =>
+          !["main-image", "title", "subtitle", "logo"].includes(element.id) &&
+          !String(element.id).startsWith("template-")
+      );
 
-        if (element.id === "subtitle") {
-          return {
-            ...element,
-            text: template.subtitle,
-            fill: template.subtitleColor,
-          };
-        }
+      const variant = String(template.variant || template.name || "").toLowerCase();
+      const isPromotion = /promo|oferta/.test(variant);
+      const isElegant = /elegante|cálida|delicada|premium|moderna/.test(variant);
+      const layout = Number(template.layout) || (isPromotion ? 3 : isElegant ? 2 : 1);
+      const colors = template.background?.colors || [
+        template.background?.color || "#0f172a",
+        "#2563eb",
+        "#ffffff",
+      ];
+      const accent = colors[colors.length - 1] || "#ffffff";
+      const occasionId = String(template.id || "").split("-")[0];
+      const occasionArt = {
+        birthday: "cake",
+        valentine: "heart",
+        carnival: "sparkles",
+        women: "star",
+        school: "calendar",
+        easter: "gift",
+        worker: "wrench",
+        may25: "flag",
+        father: "heart",
+        flag: "flag",
+        friend: "message",
+        july9: "flag",
+        children: "balloon",
+        spring: "sun",
+        mother: "heart",
+        halloween: "sparkles",
+        blackfriday: "percent",
+        christmas: "tree",
+        newyear: "sparkles",
+      }[occasionId];
+      const occasionPath = MODERN_ICON_PATHS[occasionArt] || "";
+      const secondaryArtKeys = {
+        birthday: ["balloon", "gift"],
+        valentine: ["sparkles", "gift"],
+        carnival: ["balloon", "star"],
+        women: ["sparkles", "heart"],
+        school: ["calendar", "star"],
+        easter: ["sparkles", "heart"],
+        worker: ["star", "check"],
+        may25: ["sun", "star"],
+        father: ["star", "gift"],
+        flag: ["sun", "star"],
+        friend: ["heart", "sparkles"],
+        july9: ["sun", "star"],
+        children: ["gift", "star"],
+        spring: ["sparkles", "heart"],
+        mother: ["sparkles", "gift"],
+        halloween: ["star", "sparkles"],
+        blackfriday: ["tag", "bag"],
+        christmas: ["sparkles", "gift"],
+        newyear: ["star", "sparkles"],
+      }[occasionId] || [];
+      const secondaryPaths = secondaryArtKeys
+        .map((key) => MODERN_ICON_PATHS[key])
+        .filter(Boolean);
+      const makeSecondaryArt = (x, y, size) =>
+        secondaryPaths.map((path, index) =>
+          createElement(ELEMENT_TYPES.ICON, {
+            id: `template-themed-detail-${index}`,
+            name: `Detalle temático ${index + 1}`,
+            path,
+            x: x + index * size * 1.18,
+            y: y + (index % 2) * size * 0.35,
+            width: size,
+            height: size,
+            fill: index === 0 ? accent : template.titleColor,
+            strokeWidth: 1.65,
+            opacity: index === 0 ? 0.82 : 0.58,
+            rotation: index === 0 ? -8 : 10,
+          })
+        );
 
-        return element;
-      }),
-    }));
+      let imageChanges;
+      let titleChanges;
+      let subtitleChanges;
+      let decorations;
+
+      if (layout === 2) {
+        imageChanges = {
+          x: width * 0.54,
+          y: height * 0.07,
+          width: width * 0.4,
+          height: height * 0.86,
+          cornerRadius: 48,
+        };
+        titleChanges = {
+          x: width * 0.07,
+          y: height * 0.33,
+          width: width * 0.42,
+          height: height * 0.24,
+          fontSize: Math.round(width * 0.075),
+          align: "left",
+        };
+        subtitleChanges = {
+          x: width * 0.07,
+          y: height * 0.61,
+          width: width * 0.4,
+          height: height * 0.16,
+          fontSize: Math.round(width * 0.032),
+          align: "left",
+        };
+        decorations = [
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-accent",
+            name: "Detalle de plantilla",
+            x: width * 0.07,
+            y: height * 0.15,
+            width: width * 0.18,
+            height: height * 0.025,
+            fill: accent,
+            cornerRadius: 999,
+          }),
+          ...(occasionPath
+            ? [
+                createElement(ELEMENT_TYPES.ICON, {
+                  id: "template-themed-art",
+                  name: `Ilustración ${template.holiday || "temática"}`,
+                  path: occasionPath,
+                  x: width * 0.29,
+                  y: height * 0.12,
+                  width: width * 0.17,
+                  height: width * 0.17,
+                  fill: template.titleColor,
+                  strokeWidth: 1.8,
+                  opacity: 0.9,
+                }),
+              ]
+            : []),
+          ...makeSecondaryArt(width * 0.07, height * 0.08, width * 0.075),
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-orbit-one",
+            name: "Círculo decorativo",
+            x: width * 0.34,
+            y: height * 0.09,
+            width: width * 0.12,
+            height: width * 0.12,
+            fill: accent,
+            opacity: 0.28,
+            cornerRadius: 999,
+          }),
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-orbit-two",
+            name: "Círculo decorativo",
+            x: width * 0.28,
+            y: height * 0.17,
+            width: width * 0.06,
+            height: width * 0.06,
+            fill: "#ffffff",
+            opacity: 0.45,
+            cornerRadius: 999,
+          }),
+        ];
+      } else if (layout === 3) {
+        imageChanges = {
+          x: 0,
+          y: 0,
+          width,
+          height,
+          cornerRadius: 0,
+        };
+        titleChanges = {
+          x: width * 0.08,
+          y: height * 0.54,
+          width: width * 0.84,
+          height: height * 0.19,
+          fontSize: Math.round(width * 0.083),
+          align: "center",
+        };
+        subtitleChanges = {
+          x: width * 0.13,
+          y: height * 0.75,
+          width: width * 0.74,
+          height: height * 0.12,
+          fontSize: Math.round(width * 0.031),
+          align: "center",
+        };
+        decorations = [
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-overlay",
+            name: "Fondo del texto",
+            x: width * 0.04,
+            y: height * 0.47,
+            width: width * 0.92,
+            height: height * 0.45,
+            fill: colors[0],
+            opacity: 0.86,
+            cornerRadius: 50,
+          }),
+          createElement(ELEMENT_TYPES.STICKER, {
+            id: "template-badge",
+            name: "Etiqueta promocional",
+            text: template.holiday || "ESPECIAL",
+            x: width * 0.32,
+            y: height * 0.43,
+            width: width * 0.36,
+            height: height * 0.08,
+            fill: accent,
+            color: template.titleColor === "#ffffff" ? colors[0] : "#ffffff",
+            fontSize: Math.round(width * 0.032),
+          }),
+          ...(occasionPath
+            ? [
+                createElement(ELEMENT_TYPES.ICON, {
+                  id: "template-themed-art",
+                  name: `Ilustración ${template.holiday || "temática"}`,
+                  path: occasionPath,
+                  x: width * 0.39,
+                  y: height * 0.1,
+                  width: width * 0.22,
+                  height: width * 0.22,
+                  fill: template.titleColor,
+                  strokeWidth: 1.7,
+                  opacity: 0.92,
+                }),
+              ]
+            : []),
+          ...makeSecondaryArt(width * 0.08, height * 0.12, width * 0.095),
+        ];
+      } else {
+        imageChanges = {
+          x: width * 0.06,
+          y: height * 0.06,
+          width: width * 0.88,
+          height: height * 0.5,
+          cornerRadius: 48,
+        };
+        titleChanges = {
+          x: width * 0.08,
+          y: height * 0.62,
+          width: width * 0.84,
+          height: height * 0.16,
+          fontSize: Math.round(width * 0.078),
+          align: "center",
+        };
+        subtitleChanges = {
+          x: width * 0.13,
+          y: height * 0.79,
+          width: width * 0.74,
+          height: height * 0.1,
+          fontSize: Math.round(width * 0.03),
+          align: "center",
+        };
+        decorations = [
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-shape-left",
+            name: "Forma decorativa",
+            x: width * 0.035,
+            y: height * 0.55,
+            width: width * 0.15,
+            height: width * 0.15,
+            fill: accent,
+            opacity: 0.3,
+            cornerRadius: 999,
+          }),
+          createElement(ELEMENT_TYPES.SHAPE, {
+            id: "template-shape-right",
+            name: "Forma decorativa",
+            x: width * 0.84,
+            y: height * 0.55,
+            width: width * 0.12,
+            height: width * 0.12,
+            fill: "#ffffff",
+            opacity: 0.18,
+            cornerRadius: 32,
+            rotation: 18,
+          }),
+          ...(occasionPath
+            ? [
+                createElement(ELEMENT_TYPES.ICON, {
+                  id: "template-themed-art",
+                  name: `Ilustración ${template.holiday || "temática"}`,
+                  path: occasionPath,
+                  x: width * 0.4,
+                  y: height * 0.48,
+                  width: width * 0.2,
+                  height: width * 0.2,
+                  fill: template.titleColor,
+                  strokeWidth: 1.8,
+                  opacity: 0.95,
+                }),
+              ]
+            : []),
+          ...makeSecondaryArt(width * 0.08, height * 0.5, width * 0.085),
+        ];
+      }
+
+      const image = { ...originalImage, ...imageChanges };
+      const title = {
+        ...originalTitle,
+        ...titleChanges,
+        text: template.title,
+        fill: template.titleColor,
+      };
+      const subtitle = {
+        ...originalSubtitle,
+        ...subtitleChanges,
+        text: template.subtitle,
+        fill: template.subtitleColor,
+      };
+
+      return {
+        ...current,
+        background: template.background,
+        elements: [
+          image,
+          ...decorations,
+          title,
+          subtitle,
+          ...(logo ? [logo] : []),
+          ...extraElements,
+        ],
+      };
+    });
+    setSelectedId("title");
   }
 
   async function uploadToElement(event, elementId) {
@@ -822,11 +1193,11 @@ export default function StudioImage() {
 
   return (
     <Layout>
-      <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 pb-28">
-        <div className="mx-auto max-w-[1850px] p-3 sm:p-4 md:p-6">
-          <header className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-900 p-5 text-white shadow-2xl md:p-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
+      <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 pb-28 xl:h-[calc(100vh-4rem)] xl:min-h-0 xl:overflow-hidden xl:pb-0">
+        <div className="mx-auto max-w-[1850px] p-3 sm:p-4 md:p-6 xl:flex xl:h-full xl:flex-col xl:p-3">
+          <header className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-900 p-5 text-white shadow-2xl md:p-8 xl:mb-3 xl:shrink-0 xl:px-6 xl:py-4">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between xl:items-center">
+              <div className="xl:flex xl:items-center xl:gap-4">
                 <button
                   onClick={() => navigate("/studio")}
                   className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-black"
@@ -834,15 +1205,15 @@ export default function StudioImage() {
                   ← Volver a Studio
                 </button>
 
-                <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-blue-200">
+                <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-blue-200 xl:hidden">
                   TusComercios Studio
                 </p>
 
-                <h1 className="mt-2 text-3xl font-black md:text-5xl">
+                <h1 className="mt-2 text-3xl font-black md:text-5xl xl:mt-0 xl:text-3xl">
                   Editor profesional
                 </h1>
 
-                <p className="mt-3 font-semibold text-blue-100">
+                <p className="mt-3 font-semibold text-blue-100 xl:hidden">
                   Diseñando para <strong>{business.negocio}</strong>
                 </p>
               </div>
@@ -866,8 +1237,8 @@ export default function StudioImage() {
             </div>
           </header>
 
-          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-            <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          <div className="sticky top-0 z-40 mb-4 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur-xl xl:relative xl:mb-3 xl:shrink-0">
+            <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500 xl:hidden">
               Herramientas
             </p>
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -914,8 +1285,8 @@ export default function StudioImage() {
             </div>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)_310px]">
-            <aside className="order-1 min-w-0 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-2">
+          <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[340px_minmax(0,1fr)_310px]">
+            <aside className="order-1 min-w-0 space-y-4 xl:h-full xl:overflow-y-auto xl:pr-2">
               {creationTool === "brand" && (
                 <BrandKitQuickPanel
                   brandKit={brandKit}
@@ -982,7 +1353,7 @@ export default function StudioImage() {
               </button>
             </aside>
 
-            <main className="order-2 min-w-0 xl:sticky xl:top-4">
+            <main className="order-2 min-w-0 xl:h-full xl:overflow-hidden">
               <Toolbar
                 zoom={zoom}
                 hasSelection={Boolean(selectedId)}
@@ -996,12 +1367,23 @@ export default function StudioImage() {
                   setZoom((value) => Math.max(0.18, value - 0.1))
                 }
                 onFit={() => {
-                  const available = Math.max(
+                  const availableWidth = Math.max(
                     280,
                     (containerRef.current?.clientWidth || 700) - 28
                   );
+                  const availableHeight = Math.max(
+                    260,
+                    (containerRef.current?.clientHeight || window.innerHeight - 360) - 28
+                  );
                   setZoom(
-                    Math.max(0.18, Math.min(1, available / project.width))
+                    Math.max(
+                      0.18,
+                      Math.min(
+                        1,
+                        availableWidth / project.width,
+                        availableHeight / project.height
+                      )
+                    )
                   );
                 }}
                 onUndo={undo}
@@ -1031,7 +1413,7 @@ export default function StudioImage() {
                     )
                   );
                 }}
-                className="mt-4 overflow-auto rounded-[2rem] border border-slate-200 bg-slate-200 p-3 shadow-inner sm:p-5"
+                className="mt-4 overflow-auto rounded-[2rem] border border-slate-200 bg-slate-200 p-3 shadow-inner sm:p-5 xl:h-[calc(100%-5rem)]"
               >
                 <div
                   className="relative mx-auto"
@@ -1059,7 +1441,7 @@ export default function StudioImage() {
               </section>
             </main>
 
-            <aside className="order-1 min-w-0 space-y-4 xl:order-3 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pl-2">
+            <aside className="order-1 min-w-0 space-y-4 xl:order-3 xl:h-full xl:overflow-y-auto xl:pl-2">
               {selectionTool === "properties" && <PropertiesPanel
                 element={selectedElement}
                 editingImage={editingImageId === selectedId}

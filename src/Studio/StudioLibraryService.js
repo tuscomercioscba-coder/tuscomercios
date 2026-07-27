@@ -11,6 +11,8 @@ export async function uploadStudioFile({
   blob,
   fileName,
   projectData = null,
+  downloadBlob = null,
+  downloadFileName = "",
 }) {
   const timestamp = Date.now();
 
@@ -40,6 +42,8 @@ export async function uploadStudioFile({
 
   let projectPath = "";
   let projectUrl = "";
+  let downloadPath = "";
+  let downloadUrl = "";
 
   if (projectData) {
     projectPath =
@@ -75,6 +79,33 @@ export async function uploadStudioFile({
       projectPublicData?.publicUrl || "";
   }
 
+  if (downloadBlob) {
+    const downloadExtension =
+      downloadFileName?.split(".").pop()?.toLowerCase() || "zip";
+    downloadPath =
+      `${userId}/${businessId}/${timestamp}-download.${downloadExtension}`;
+
+    const { error: downloadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(downloadPath, downloadBlob, {
+        contentType: downloadBlob?.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (downloadError) {
+      await supabase.storage
+        .from(BUCKET)
+        .remove([storagePath, projectPath].filter(Boolean));
+      throw downloadError;
+    }
+
+    const { data: downloadPublicData } = supabase.storage
+      .from(BUCKET)
+      .getPublicUrl(downloadPath);
+
+    downloadUrl = downloadPublicData?.publicUrl || "";
+  }
+
   const { data, error } = await supabase
     .from("studio_library")
     .insert({
@@ -91,6 +122,9 @@ export async function uploadStudioFile({
         mime_type: blob?.type || "",
         project_path: projectPath,
         project_url: projectUrl,
+        download_path: downloadPath,
+        download_url: downloadUrl,
+        download_file_name: downloadFileName,
         editable: Boolean(projectData),
       },
     })
@@ -101,6 +135,7 @@ export async function uploadStudioFile({
     const pathsToDelete = [
       storagePath,
       projectPath,
+      downloadPath,
     ].filter(Boolean);
 
     await supabase.storage
@@ -153,6 +188,7 @@ export async function deleteStudioLibraryItem(item) {
   const pathsToDelete = [
     item?.metadata?.storage_path,
     item?.metadata?.project_path,
+    item?.metadata?.download_path,
   ].filter(Boolean);
 
   if (pathsToDelete.length > 0) {
@@ -176,4 +212,63 @@ export async function deleteStudioLibraryItem(item) {
   }
 
   return true;
+}
+
+export async function renameStudioLibraryItem(item, title) {
+  const cleanTitle = String(title || "").trim().slice(0, 140);
+  if (!item?.id || !cleanTitle) {
+    throw new Error("Ingresá un nombre válido.");
+  }
+
+  const { data, error } = await supabase
+    .from("studio_library")
+    .update({ title: cleanTitle })
+    .eq("id", item.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function duplicateStudioLibraryItem(item) {
+  if (!item?.file_url) {
+    throw new Error("El contenido no tiene un archivo para duplicar.");
+  }
+
+  const [fileResponse, projectResponse, downloadResponse] = await Promise.all([
+    fetch(item.file_url),
+    item?.metadata?.project_url
+      ? fetch(item.metadata.project_url)
+      : Promise.resolve(null),
+    item?.metadata?.download_url
+      ? fetch(item.metadata.download_url)
+      : Promise.resolve(null),
+  ]);
+
+  if (!fileResponse.ok) {
+    throw new Error("No se pudo recuperar el contenido original.");
+  }
+
+  const fileBlob = await fileResponse.blob();
+  const projectData = projectResponse?.ok
+    ? await projectResponse.json()
+    : null;
+  const downloadBlob = downloadResponse?.ok
+    ? await downloadResponse.blob()
+    : null;
+
+  return uploadStudioFile({
+    userId: item.user_id,
+    businessId: item.business_id,
+    entityType: item.entity_type || "business",
+    contentType: item.content_type,
+    title: `${item.title || "Contenido de Studio"} - copia`,
+    blob: fileBlob,
+    fileName: item?.metadata?.file_name || "contenido.png",
+    projectData,
+    downloadBlob,
+    downloadFileName:
+      item?.metadata?.download_file_name || "",
+  });
 }

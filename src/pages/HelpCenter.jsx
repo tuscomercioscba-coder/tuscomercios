@@ -283,6 +283,11 @@ export default function HelpCenter() {
               title="Reels Studio"
               text="Armá videos cortos para promocionar productos, servicios, novedades y ofertas."
             />
+            <Feature
+              icon={Images}
+              title="Editor de carruseles"
+              text="Creá entre 4 y 10 páginas coordinadas, con plantillas por rubro, textos editables e imágenes independientes."
+            />
           </div>
 
           <article className="mt-8 rounded-[26px] border border-violet-100 bg-violet-50 p-7">
@@ -306,6 +311,18 @@ export default function HelpCenter() {
                   </tr>
                   <tr>
                     <td className="py-4">Reels Studio</td>
+                    <td className="py-4 text-center">No incluido</td>
+                    <td className="py-4 text-center">1 por día</td>
+                    <td className="py-4 text-center">2 por día</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4">Editor de carruseles</td>
+                    <td className="py-4 text-center">No incluido</td>
+                    <td className="py-4 text-center">2 por día</td>
+                    <td className="py-4 text-center">4 por día</td>
+                  </tr>
+                  <tr>
+                    <td className="py-4">Análisis creativo por editor</td>
                     <td className="py-4 text-center">No incluido</td>
                     <td className="py-4 text-center">1 por día</td>
                     <td className="py-4 text-center">2 por día</td>

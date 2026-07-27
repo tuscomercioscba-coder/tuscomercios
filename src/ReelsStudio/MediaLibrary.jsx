@@ -7,6 +7,8 @@ export default function MediaLibrary({
   onUpload,
   onSelect,
   onAddScene,
+  onReplaceScene,
+  hasSelectedScene,
   onRemove,
 }) {
   const inputRef = useRef(null);
@@ -22,7 +24,7 @@ export default function MediaLibrary({
       </h3>
 
       <p className="mt-2 text-sm font-semibold text-slate-500">
-        Subí varios archivos una sola vez y reutilizalos en todas las escenas.
+        Seleccioná una escena y reemplazá su fondo sin perder textos ni efectos.
       </p>
 
       <input
@@ -115,7 +117,16 @@ export default function MediaLibrary({
                   </div>
                 </button>
 
-                <div className="grid grid-cols-[1fr_auto] gap-2 p-2 pt-0">
+                <div className="grid gap-2 p-2 pt-0">
+                  <button
+                    type="button"
+                    disabled={!hasSelectedScene}
+                    onClick={() => onReplaceScene(item.id)}
+                    className="min-h-11 rounded-xl bg-blue-600 px-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  >
+                    Reemplazar fondo
+                  </button>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
                   <button
                     type="button"
                     onClick={() =>
@@ -136,6 +147,7 @@ export default function MediaLibrary({
                   >
                     ×
                   </button>
+                  </div>
                 </div>
               </article>
             );

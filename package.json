@@ -13,6 +13,7 @@
     "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.105.4",
     "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1",
     "konva": "^9.3.22",
     "lucide-react": "^1.8.0",
     "react": "^18.3.1",
@@ -20,7 +21,8 @@
     "react-helmet": "^6.1.0",
     "react-helmet-async": "^3.0.0",
     "react-konva": "^18.2.10",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

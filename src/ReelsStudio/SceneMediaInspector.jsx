@@ -168,8 +168,16 @@ export default function SceneMediaInspector({
         >
           <option value="cover">Llenar pantalla</option>
           <option value="contain">Mostrar completa</option>
+          <option value="smart">Inteligente · completa + fondo</option>
         </select>
       </label>
+
+      {clip.fit === "smart" && (
+        <p className="mt-2 rounded-xl bg-emerald-50 p-3 text-xs font-bold leading-relaxed text-emerald-800">
+          Ajuste inteligente activo: la imagen se muestra completa y el espacio
+          restante se rellena con una copia desenfocada.
+        </p>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ const PLAN_PRICES = Object.freeze({
 });
 
 const BANNER_PRICE = 50000;
+const ADMINISTRATION_PRICE = 59999;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -25,6 +26,16 @@ async function validateBanner(context, userId, bannerId) {
   if (!response.ok) return null;
   const rows = await response.json();
   return rows?.[0] || null;
+}
+
+async function validateBusiness(context, userId, businessId) {
+  if (!businessId) return null;
+  const response = await supabaseAdmin(
+    context,
+    `businesses?id=eq.${encodeURIComponent(businessId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,user_id,negocio&limit=1`
+  );
+  if (!response.ok) return null;
+  return (await response.json())?.[0] || null;
 }
 
 export async function onRequestPost(context) {
@@ -60,6 +71,21 @@ export async function onRequestPost(context) {
       reason = "Tus Comercios - Banner regional por 30 días";
       externalReference = `banner:${banner.id}:${auth.user.id}`;
       backUrl = `https://tuscomercios.com.ar/success?checkout=banner&banner_id=${encodeURIComponent(banner.id)}`;
+    } else if (type === "administration") {
+      const businessId = String(body.business_id || "").trim();
+      const business = await validateBusiness(
+        context,
+        auth.user.id,
+        businessId
+      );
+      if (!business) {
+        return errorJson("El negocio no existe o no pertenece al usuario", 403);
+      }
+      amount = ADMINISTRATION_PRICE;
+      reason = "TusComercios Administración";
+      externalReference = `administration:${business.id}:${auth.user.id}`;
+      backUrl =
+        "https://tuscomercios.com.ar/administracion?checkout=administration";
     } else {
       const plan = String(body.plan || "").toLowerCase();
       amount = PLAN_PRICES[plan];
@@ -119,6 +145,34 @@ export async function onRequestPost(context) {
             payment_status: "pending",
             mp_subscription_id: data.id,
           }),
+        }
+      );
+    } else if (type === "administration") {
+      const businessId = externalReference.split(":")[1];
+      const payload = {
+        user_id: auth.user.id,
+        business_id: businessId,
+        status: data.status || "pending",
+        monthly_price: amount,
+        mp_subscription_id: data.id,
+        updated_at: new Date().toISOString(),
+      };
+      const existingResponse = await supabaseAdmin(
+        context,
+        `administration_subscriptions?business_id=eq.${encodeURIComponent(businessId)}&select=id&limit=1`
+      );
+      const existing = existingResponse.ok
+        ? (await existingResponse.json())?.[0]
+        : null;
+      await supabaseAdmin(
+        context,
+        existing?.id
+          ? `administration_subscriptions?id=eq.${encodeURIComponent(existing.id)}`
+          : "administration_subscriptions",
+        {
+          method: existing?.id ? "PATCH" : "POST",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify(payload),
         }
       );
     } else {

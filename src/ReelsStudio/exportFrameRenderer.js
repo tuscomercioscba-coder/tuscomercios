@@ -904,8 +904,34 @@ function drawMediaInRect(
   const fit =
     clip?.fit || "cover";
 
+  if (fit === "smart") {
+    const backgroundScale =
+      Math.max(width / sw, height / sh) * 1.16;
+    const backgroundWidth = sw * backgroundScale;
+    const backgroundHeight = sh * backgroundScale;
+
+    context.save();
+    context.beginPath();
+    context.rect(x, y, width, height);
+    context.clip();
+    context.globalAlpha = 0.72;
+    context.filter = "blur(34px) brightness(0.72)";
+    context.drawImage(
+      media,
+      x + (width - backgroundWidth) / 2,
+      y + (height - backgroundHeight) / 2,
+      backgroundWidth,
+      backgroundHeight
+    );
+    context.filter = "none";
+    context.globalAlpha = 1;
+    context.fillStyle = "rgba(0,0,0,.12)";
+    context.fillRect(x, y, width, height);
+    context.restore();
+  }
+
   let scale =
-    fit === "contain"
+    fit === "contain" || fit === "smart"
       ? Math.min(
         width / sw,
         height / sh

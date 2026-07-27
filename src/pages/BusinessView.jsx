@@ -20,6 +20,7 @@ export default function BusinessView() {
 
   const [business, setBusiness] = useState(null);
   const [index, setIndex] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [canPreviewDraft, setCanPreviewDraft] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -394,27 +395,39 @@ export default function BusinessView() {
   }
 
   function openImage(i) {
-    setIndex(i);
+    setLightboxIndex(i);
     setLightboxOpen(true);
   }
 
   function nextImage(e) {
     e?.stopPropagation();
 
-    if (images.length === 0) return;
+    if (galleryMedia.length === 0) return;
 
-    setIndex((prev) => (prev + 1) % images.length);
+    setLightboxIndex((prev) => (prev + 1) % galleryMedia.length);
   }
 
   function prevImage(e) {
     e?.stopPropagation();
 
-    if (images.length === 0) return;
+    if (galleryMedia.length === 0) return;
 
-    setIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setLightboxIndex((prev) =>
+      prev === 0 ? galleryMedia.length - 1 : prev - 1
+    );
   }
 
-  const visibleGallery = images.slice(0, isPremium ? 10 : isStandard ? 8 : 4);
+  const galleryMedia = [
+    ...images.map((src) => ({ type: "image", src })),
+    ...((isStandard || isPremium) && business.video
+      ? [{ type: "video", src: business.video }]
+      : []),
+  ];
+  const visibleGallery = galleryMedia.slice(
+    0,
+    isPremium ? 11 : isStandard ? 9 : 4
+  );
+  const currentLightboxMedia = galleryMedia[lightboxIndex];
   const serviciosDestacados = getServiciosDestacados();
   const hasPremiumMap = isPremium && (business.lat || business.lng || business.direccion);
 
@@ -697,29 +710,45 @@ export default function BusinessView() {
                     </h2>
 
                     <span className="text-sm font-bold text-slate-400">
-                      {visibleGallery.length} fotos
+                      {visibleGallery.length} archivos
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {visibleGallery.map((img, i) => (
+                    {visibleGallery.map((media, i) => (
                       <button
-                        key={i}
+                        key={`${media.type}-${media.src}`}
                         onClick={() => openImage(i)}
                         className={`relative overflow-hidden rounded-2xl bg-slate-100 aspect-square shadow-sm border-2 ${
-                          i === index ? "border-blue-600" : "border-transparent"
+                          i === lightboxIndex ? "border-blue-600" : "border-transparent"
                         }`}
                       >
-                        <img
-                          src={img}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                          className="w-full h-full object-cover hover:scale-110 transition duration-500"
-                        />
+                        {media.type === "video" ? (
+                          <>
+                            <video
+                              src={media.src}
+                              poster={business.image || images[0]}
+                              preload="metadata"
+                              muted
+                              playsInline
+                              className="h-full w-full object-cover"
+                            />
+                            <span className="absolute inset-0 grid place-items-center bg-black/20 text-4xl text-white">
+                              ▶
+                            </span>
+                          </>
+                        ) : (
+                          <img
+                            src={media.src}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                            className="w-full h-full object-cover hover:scale-110 transition duration-500"
+                          />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -956,7 +985,7 @@ export default function BusinessView() {
             ×
           </button>
 
-          {images.length > 1 && (
+          {galleryMedia.length > 1 && (
             <button
               onClick={prevImage}
               className="absolute left-3 md:left-8 bg-white/90 text-black w-12 h-12 rounded-full text-3xl font-black"
@@ -965,14 +994,27 @@ export default function BusinessView() {
             </button>
           )}
 
-          <img
-            src={currentImage}
-            alt={business.negocio}
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-full max-h-[85vh] object-contain rounded-xl"
-          />
+          {currentLightboxMedia?.type === "video" ? (
+            <video
+              src={currentLightboxMedia.src}
+              poster={business.image || images[0]}
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[85vh] max-w-full rounded-xl bg-black object-contain"
+            />
+          ) : (
+            <img
+              src={currentLightboxMedia?.src || currentImage}
+              alt={business.negocio}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-[85vh] object-contain rounded-xl"
+            />
+          )}
 
-          {images.length > 1 && (
+          {galleryMedia.length > 1 && (
             <button
               onClick={nextImage}
               className="absolute right-3 md:right-8 bg-white/90 text-black w-12 h-12 rounded-full text-3xl font-black"
@@ -981,9 +1023,9 @@ export default function BusinessView() {
             </button>
           )}
 
-          {images.length > 0 && (
+          {galleryMedia.length > 0 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-white/90 text-black px-4 py-2 rounded-full text-sm font-bold">
-              {index + 1} / {images.length}
+              {lightboxIndex + 1} / {galleryMedia.length}
             </div>
           )}
         </div>

@@ -854,6 +854,17 @@ function EditableMediaPane({
         }
         style={mediaStyle}
       >
+        {clip.fit === "smart" && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-950">
+            <img
+              src={media.type === "video" ? media.thumbnail || media.url : media.url}
+              alt=""
+              className="h-full w-full scale-125 object-cover opacity-70 blur-3xl"
+            />
+            <div className="absolute inset-0 bg-black/20" />
+          </div>
+        )}
+
         {media.type === "video" ? (
           <video
             key={media.id}
@@ -863,8 +874,7 @@ function EditableMediaPane({
             playsInline
             preload="auto"
             className={`h-full w-full ${
-              clip.fit ===
-              "contain"
+              clip.fit === "contain" || clip.fit === "smart"
                 ? "object-contain"
                 : "object-cover"
             }`}
@@ -874,8 +884,7 @@ function EditableMediaPane({
             src={media.url}
             alt=""
             className={`h-full w-full ${
-              clip.fit ===
-              "contain"
+              clip.fit === "contain" || clip.fit === "smart"
                 ? "object-contain"
                 : "object-cover"
             }`}

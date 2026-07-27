@@ -133,3 +133,53 @@ export function buildReelStudioContext({
     })),
   };
 }
+
+export function buildCarouselStudioContext({
+  business,
+  brandKit,
+  pages,
+  format,
+  objective,
+  styleId,
+  selectedIndex,
+}) {
+  const safePages = Array.isArray(pages) ? pages : [];
+
+  return {
+    source: "carousel-studio",
+    editor: "Editor de Carruseles",
+    business: compactBusiness(business),
+    brandKit: compactBrandKit(brandKit),
+    carousel: {
+      format: cleanText(format, 40),
+      objective: cleanText(objective, 60),
+      visualStyle: cleanText(styleId, 60),
+      pagesCount: safePages.length,
+      selectedPage: Number(selectedIndex || 0) + 1,
+    },
+    pages: safePages.slice(0, 10).map((page, index) => ({
+      page: index + 1,
+      eyebrow: cleanText(page?.eyebrow, 100),
+      title: cleanText(page?.title, 240),
+      body: cleanText(page?.body, 360),
+      callToAction: cleanText(page?.cta, 120),
+      images: Array.isArray(page?.images)
+        ? page.images.slice(0, 8).map((image) => ({
+            x: Math.round(Number(image?.x || 0)),
+            y: Math.round(Number(image?.y || 0)),
+            width: Math.round(Number(image?.width || 0)),
+            height: Math.round(Number(image?.height || 0)),
+            rotation: Math.round(Number(image?.rotation || 0)),
+            opacity: Number(image?.opacity ?? 1),
+            background: Boolean(image?.isBackground),
+            filter: cleanText(image?.filter, 120),
+          }))
+        : [],
+      font: cleanText(page?.font, 80),
+      background: page?.background || "",
+      accent: page?.accent || "",
+      textColor: page?.textColor || "",
+      emoji: cleanText(page?.emoji, 20),
+    })),
+  };
+}

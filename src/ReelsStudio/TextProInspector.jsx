@@ -562,6 +562,16 @@ export default function TextProInspector({
                   Máquina de escribir
                 </option>
                 <option value="rotate">Giro suave</option>
+                <option value="pop">Pop</option>
+                <option value="pulse">Pulso</option>
+                <option value="elastic">Elástico</option>
+                <option value="drop">Caída</option>
+                <option value="rise">Ascenso</option>
+                <option value="whip-left">Latigazo izquierdo</option>
+                <option value="whip-right">Latigazo derecho</option>
+                <option value="swing">Balanceo</option>
+                <option value="flip">Volteo</option>
+                <option value="shrink">Contraer</option>
               </select>
             </Field>
 

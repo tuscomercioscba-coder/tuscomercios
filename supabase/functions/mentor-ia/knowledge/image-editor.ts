@@ -10,7 +10,8 @@ CONTENIDO
 - Agregar texto, imagen, logo, forma, línea, íconos y stickers.
 - Biblioteca amplia de íconos por contacto, comercio, pagos, envíos, promociones, valoraciones, gastronomía, belleza, salud, servicios, vehículos, mascotas y otros.
 - Stickers confirmados: NUEVO, PROMO, 20% OFF, HOY y RECOMENDADO.
-- Plantillas rápidas y categorías de diseño: Promoción/Oferta fuerte, Novedad, Premium, Moderno y Limpio, según el panel usado.
+- Galería de plantillas comerciales y fechas especiales argentinas, con diseños modernos, miniaturas y categorías.
+- Las plantillas admiten reemplazar fotografías y conservar el estilo visual, los filtros, la composición y los textos editables.
 FONDO E IMAGEN
 - Fondo sólido o degradados/presets disponibles.
 - Subir/cambiar imagen, llenar pantalla, llenar y recortar o mostrar completa.
@@ -30,6 +31,7 @@ PROYECTOS Y EXPORTACIÓN
 - Descargar/importar archivo de proyecto JSON.
 - Exportar PNG, JPG o WebP; escalas/calidades disponibles como Normal, Alta 2x y Máxima 4x según formato.
 - Guardar piezas compatibles en la Biblioteca de Studio.
+- El botón Analizar con Mentor IA envía el contexto técnico del proyecto abierto; Estándar dispone de 1 análisis diario y Premium de 2.
 Consejos válidos:
 - Simplificar texto, aumentar contraste, jerarquizar producto/título/CTA, respetar zona segura y usar Brand Kit.
 No disponible o no garantizado:

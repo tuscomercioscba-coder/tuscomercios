@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
 import {
   deleteStudioLibraryItem,
+  duplicateStudioLibraryItem,
   getStudioLibrary,
+  renameStudioLibraryItem,
 } from "../../Studio/StudioLibraryService";
 
 export default function StudioLibrary({
@@ -16,6 +18,7 @@ export default function StudioLibrary({
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState("");
+  const [workingId, setWorkingId] = useState("");
 
   useEffect(() => {
     loadLibrary();
@@ -67,11 +70,47 @@ export default function StudioLibrary({
         ? "workspace"
         : "business";
 
-    navigate(
-      `/studio/imagen/${entityType}/${selectedItem.id}?project=${encodeURIComponent(
-        projectUrl
-      )}`
+    const editorPath =
+      item.content_type === "carousel"
+        ? "carrusel"
+        : "imagen";
+
+    navigate(`/studio/${editorPath}/${entityType}/${selectedItem.id}?project=${encodeURIComponent(projectUrl)}`);
+  }
+
+  async function renameItem(item) {
+    const nextTitle = window.prompt(
+      "Nuevo nombre para este contenido:",
+      item.title || "Contenido de Studio"
     );
+    if (!nextTitle?.trim()) return;
+    try {
+      setWorkingId(item.id);
+      const updated = await renameStudioLibraryItem(item, nextTitle);
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id ? updated : currentItem
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "No se pudo cambiar el nombre.");
+    } finally {
+      setWorkingId("");
+    }
+  }
+
+  async function duplicateItem(item) {
+    try {
+      setWorkingId(item.id);
+      const duplicated = await duplicateStudioLibraryItem(item);
+      setItems((current) => [duplicated, ...current]);
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || "No se pudo duplicar el contenido.");
+    } finally {
+      setWorkingId("");
+    }
   }
 
   async function deleteItem(item) {
@@ -158,7 +197,7 @@ export default function StudioLibrary({
           className="min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 font-semibold outline-none focus:ring-4 focus:ring-blue-100"
         />
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <FilterButton
             active={filter === "all"}
             onClick={() => setFilter("all")}
@@ -178,6 +217,13 @@ export default function StudioLibrary({
             onClick={() => setFilter("reel")}
           >
             Reels
+          </FilterButton>
+
+          <FilterButton
+            active={filter === "carousel"}
+            onClick={() => setFilter("carousel")}
+          >
+            Carruseles
           </FilterButton>
         </div>
       </div>
@@ -203,17 +249,19 @@ export default function StudioLibrary({
           </h3>
 
           <p className="mt-2 font-semibold text-slate-500">
-            Las imágenes y reels exportados aparecerán automáticamente acá.
+            Las imágenes, reels y carruseles exportados aparecerán automáticamente acá.
           </p>
         </div>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleItems.map((item) => {
             const editable =
-              item.content_type === "image" &&
-              Boolean(
-                item?.metadata?.project_url
-              );
+              ["image", "carousel"].includes(item.content_type) &&
+              Boolean(item?.metadata?.project_url);
+            const isReel = item.content_type === "reel";
+            const isCarousel = item.content_type === "carousel";
+            const downloadUrl =
+              item?.metadata?.download_url || item.file_url;
 
             return (
               <article
@@ -221,7 +269,7 @@ export default function StudioLibrary({
                 className="overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-lg"
               >
                 <div className="relative aspect-square overflow-hidden bg-slate-100">
-                  {item.content_type === "reel" ? (
+                  {isReel ? (
                     <video
                       src={
                         item.thumbnail_url ||
@@ -243,9 +291,11 @@ export default function StudioLibrary({
                   )}
 
                   <div className="absolute left-3 top-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-black text-white">
-                    {item.content_type === "reel"
+                    {isReel
                       ? "🎬 Reel"
-                      : "🖼️ Imagen"}
+                      : isCarousel
+                        ? "📚 Carrusel"
+                        : "🖼️ Imagen"}
                   </div>
                 </div>
 
@@ -284,12 +334,31 @@ export default function StudioLibrary({
                     </a>
 
                     <a
-                      href={item.file_url}
+                      href={downloadUrl}
                       download
                       className="flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-3 text-sm font-black text-white"
                     >
                       Descargar
                     </a>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => renameItem(item)}
+                      disabled={workingId === item.id}
+                      className="min-h-10 rounded-xl bg-slate-100 px-2 text-xs font-black text-slate-700 disabled:opacity-50"
+                    >
+                      Renombrar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => duplicateItem(item)}
+                      disabled={workingId === item.id}
+                      className="min-h-10 rounded-xl bg-amber-50 px-2 text-xs font-black text-amber-700 disabled:opacity-50"
+                    >
+                      Duplicar
+                    </button>
                   </div>
 
                   <button

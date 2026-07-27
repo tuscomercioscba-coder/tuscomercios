@@ -14,6 +14,7 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 const BusinessView = lazy(() => import("./pages/BusinessView"));
 const Studio = lazy(() => import("./pages/Studio"));
 const StudioImage = lazy(() => import("./pages/StudioImage"));
+const StudioCarousel = lazy(() => import("./pages/StudioCarousel"));
 const BrandKit = lazy(() => import("./pages/BrandKit"));
 const RegisterBanner = lazy(() => import("./pages/RegisterBanner"));
 const EditBanner = lazy(() => import("./pages/EditBanner"));
@@ -26,6 +27,8 @@ const RegisterBusiness = lazy(() => import("./pages/RegisterBusiness"));
 const PlansPage = lazy(() => import("./pages/PlansPage"));
 const Success = lazy(() => import("./pages/Success"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
+const StoriesManager = lazy(() => import("./pages/StoriesManager"));
+const Administration = lazy(() => import("./pages/Administration"));
 
 function PageLoader() {
   return (
@@ -298,11 +301,14 @@ export default function App() {
           <Route path="/studio" element={<Studio />} />
           <Route path="/studio/imagen/:id" element={<StudioImage />} />
           <Route path="/studio/imagen/:entityType/:id" element={<StudioImage />} />
+          <Route path="/studio/carrusel/:entityType/:id" element={<StudioCarousel />} />
           <Route path="/studio/brand/:id" element={<BrandKit />} />
           <Route path="/studio/brand/:entityType/:id" element={<BrandKit />} />
           <Route path="/generar-reel/:id" element={<ReelGenerator />} />
           <Route path="/generar-reel/:entityType/:id" element={<ReelGenerator />} />
           <Route path="/studio/mentor/:entityType/:id" element={<Mentor />} />
+          <Route path="/studio/historias" element={<StoriesManager />} />
+          <Route path="/administracion" element={<Administration />} />
           <Route path="/crear-banner" element={<RegisterBanner />} />
           <Route path="/editar-banner/:id" element={<EditBanner />} />
           <Route path="/dashboard" element={<Dashboard />} />

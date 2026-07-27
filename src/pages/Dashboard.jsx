@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [profiles, setProfiles] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [pageEvents, setPageEvents] = useState([]);
+  const [storyReports, setStoryReports] = useState([]);
   const [myUserId, setMyUserId] = useState(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -228,6 +229,12 @@ export default function Dashboard() {
 
     setProfiles(profilesData || []);
     setSubscriptions(subscriptionsData || []);
+
+    const { data: reportsData } = await supabase
+      .from("story_reports")
+      .select("*,business_stories(id,business_id,media_url,caption)")
+      .order("created_at", { ascending: false });
+    setStoryReports(reportsData || []);
   }
 
   setLoading(false);
@@ -675,6 +682,13 @@ export default function Dashboard() {
                   TusComercios Studio
                 </button>
 
+                <button
+                  onClick={() => navigate("/administracion")}
+                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 font-black text-white backdrop-blur transition hover:bg-white/20"
+                >
+                  Administración
+                </button>
+
                 {isAdmin && (
                   <button
                     onClick={() => navigate("/register-business?admin=true")}
@@ -702,6 +716,10 @@ export default function Dashboard() {
                 ["negocios", "Todos los negocios"],
                 ["usuarios", "Usuarios"],
                 ["suscripciones", "Suscripciones"],
+                [
+                  "denuncias",
+                  `Denuncias${storyReports.filter((item) => item.status === "pending").length ? ` (${storyReports.filter((item) => item.status === "pending").length})` : ""}`,
+                ],
                 ["metricas", "Métricas"],
                 ["finanzas", "Rentabilidad / Finanzas"],
               ].map(([key, label]) => (
@@ -948,6 +966,14 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </AdminTable>
+          )}
+
+          {isAdmin && activeTab === "denuncias" && (
+            <StoryReportsPanel
+              reports={storyReports}
+              businesses={allBusinesses}
+              onRefresh={getData}
+            />
           )}
 
           {isAdmin && activeTab === "usuarios" && (
@@ -2239,6 +2265,20 @@ function BusinessCards({
                   TusComercios Studio
                 </button>
 
+                {["standard", "estandar", "premium"].includes(
+                  String(b.plan || "").toLowerCase()
+                ) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate("/studio/historias");
+                    }}
+                    className="bg-gradient-to-r from-red-600 to-blue-600 px-4 py-3 text-sm font-black text-white rounded-xl"
+                  >
+                    Historias y calendario
+                  </button>
+                )}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -2276,6 +2316,89 @@ function BusinessCards({
         );
       })}
     </div>
+  );
+}
+
+function StoryReportsPanel({ reports, businesses, onRefresh }) {
+  async function updateReport(report, status, removeStory = false) {
+    if (removeStory && report.business_stories?.id) {
+      const { error } = await supabase
+        .from("business_stories")
+        .delete()
+        .eq("id", report.business_stories.id);
+      if (error) return alert(error.message);
+
+      const marker = "/business-images/";
+      const path = decodeURIComponent(
+        String(report.business_stories.media_url || "").split(marker)[1] || ""
+      );
+      if (path) await supabase.storage.from("business-images").remove([path]);
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("story_reports")
+      .update({
+        status,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: authData.user?.id || null,
+      })
+      .eq("id", report.id);
+    if (error) return alert(error.message);
+    onRefresh();
+  }
+
+  return (
+    <AdminTable title="Denuncias de historias">
+      {reports.length === 0 ? (
+        <p className="p-5 text-slate-500">No hay denuncias recibidas.</p>
+      ) : (
+        <div className="grid gap-4 p-2 md:grid-cols-2 xl:grid-cols-3">
+          {reports.map((report) => {
+            const business = businesses.find(
+              (item) => item.id === report.business_stories?.business_id
+            );
+            return (
+              <article key={report.id} className="rounded-2xl border bg-slate-50 p-4">
+                {report.business_stories?.media_url && (
+                  <img
+                    src={report.business_stories.media_url}
+                    className="mb-3 h-40 w-full rounded-xl bg-slate-200 object-contain"
+                    alt=""
+                  />
+                )}
+                <p className="text-xs font-black uppercase text-red-600">
+                  {report.status}
+                </p>
+                <h3 className="mt-1 font-black">
+                  {business?.negocio || "Comercio"}
+                </h3>
+                <p className="mt-2 text-sm text-slate-700">{report.reason}</p>
+                <p className="mt-2 text-xs text-slate-400">
+                  {new Date(report.created_at).toLocaleString("es-AR")}
+                </p>
+                {report.status === "pending" && (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => updateReport(report, "dismissed")}
+                      className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-black"
+                    >
+                      Descartar
+                    </button>
+                    <button
+                      onClick={() => updateReport(report, "removed", true)}
+                      className="rounded-xl bg-red-600 px-3 py-2 text-sm font-black text-white"
+                    >
+                      Eliminar historia
+                    </button>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </AdminTable>
   );
 }
 

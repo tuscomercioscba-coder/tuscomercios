@@ -7,12 +7,16 @@ import {
   smartFieldScore,
   smartTextMatches,
 } from "../search/utils/smartSearch";
+import StoryViewer from "../Stories/StoryViewer";
+import { getSeenStoryIds } from "../Stories/storyUtils";
 
 export default function BusinessDirectory() {
   const [businesses, setBusinesses] = useState([]);
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
   const [userLocation, setUserLocation] = useState(null);
+  const [stories, setStories] = useState([]);
+  const [storyBusinessId, setStoryBusinessId] = useState("");
 
   const navigate = useNavigate();
 
@@ -126,6 +130,18 @@ export default function BusinessDirectory() {
     }
 
     setBusinesses(data || []);
+
+    const businessIds = (data || []).map((item) => item.id);
+    if (businessIds.length) {
+      const { data: activeStories } = await supabase
+        .from("business_stories")
+        .select("*")
+        .in("business_id", businessIds)
+        .lte("scheduled_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString())
+        .order("scheduled_at");
+      setStories(activeStories || []);
+    }
   }
 
   async function registerVisit(businessId) {
@@ -300,17 +316,40 @@ export default function BusinessDirectory() {
             }
 
             const plan = normalizePlan(b.plan);
+            const businessStories = stories.filter(
+              (story) => story.business_id === b.id
+            );
+            const seenIds = getSeenStoryIds();
+            const hasNewStories = businessStories.some(
+              (story) => !seenIds.has(story.id)
+            );
 
             return (
               <div
                 key={b.id}
                 onClick={() => goToBusiness(b)}
-                className="flex gap-4 bg-white border rounded-2xl shadow hover:shadow-xl transition cursor-pointer overflow-hidden"
+                className={`flex gap-4 bg-white border rounded-2xl shadow hover:shadow-xl transition cursor-pointer overflow-hidden ${
+                  businessStories.length
+                    ? hasNewStories
+                      ? "ring-4 ring-red-500 border-red-500"
+                      : "ring-4 ring-blue-600 border-blue-600"
+                    : ""
+                }`}
               >
-                <div className="w-40 h-32 bg-gray-200 flex-shrink-0">
+                <div
+                  className="relative m-2 h-28 w-28 flex-shrink-0 rounded-xl bg-gray-200 sm:m-0 sm:h-32 sm:w-40 sm:rounded-none"
+                  onClick={
+                    businessStories.length
+                      ? (event) => {
+                          event.stopPropagation();
+                          setStoryBusinessId(b.id);
+                        }
+                      : undefined
+                  }
+                >
                   <img
                     src={b.image || "/no-image.jpg"}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full rounded-xl object-cover sm:rounded-none"
                     alt={b.negocio}
                     loading={i < 3 ? "eager" : "lazy"}
                     fetchPriority={i < 3 ? "high" : "auto"}
@@ -319,6 +358,11 @@ export default function BusinessDirectory() {
                       e.currentTarget.src = "/no-image.jpg";
                     }}
                   />
+                  {businessStories.length > 0 && (
+                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-slate-950/80 px-2 py-1 text-[10px] font-black text-white">
+                      Ver historias
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-col justify-between p-4 w-full">
@@ -377,6 +421,14 @@ export default function BusinessDirectory() {
           })}
         </div>
       </div>
+      {storyBusinessId && (
+        <StoryViewer
+          businesses={filtered}
+          stories={stories}
+          initialBusinessId={storyBusinessId}
+          onClose={() => setStoryBusinessId("")}
+        />
+      )}
     </section>
   );
 }

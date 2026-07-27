@@ -89,7 +89,11 @@ async function readPreapproval(context, id) {
 
 function parseReference(reference) {
   const [type, value, userId] = String(reference || "").split(":");
-  if (!["plan", "banner"].includes(type) || !value || !userId) return null;
+  if (
+    !["plan", "banner", "administration"].includes(type) ||
+    !value ||
+    !userId
+  ) return null;
   return { type, value, userId };
 }
 
@@ -188,6 +192,44 @@ async function saveBanner(context, preapproval, reference) {
   );
 }
 
+async function saveAdministration(context, preapproval, reference) {
+  const payload = {
+    user_id: reference.userId,
+    business_id: reference.value,
+    status:
+      preapproval.status === "authorized"
+        ? "authorized"
+        : preapproval.status === "cancelled"
+          ? "cancelled"
+          : preapproval.status === "paused"
+            ? "paused"
+            : "pending",
+    monthly_price: Number(
+      preapproval.auto_recurring?.transaction_amount || 59999
+    ),
+    mp_subscription_id: preapproval.id,
+    updated_at: new Date().toISOString(),
+  };
+  const existingResponse = await supabaseAdmin(
+    context,
+    `administration_subscriptions?business_id=eq.${encodeURIComponent(reference.value)}&select=id&limit=1`
+  );
+  const existing = existingResponse.ok
+    ? (await existingResponse.json())?.[0]
+    : null;
+  await supabaseAdmin(
+    context,
+    existing?.id
+      ? `administration_subscriptions?id=eq.${encodeURIComponent(existing.id)}`
+      : "administration_subscriptions",
+    {
+      method: existing?.id ? "PATCH" : "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
 export async function onRequestPost(context) {
   try {
     if (
@@ -236,6 +278,8 @@ export async function onRequestPost(context) {
 
     if (reference.type === "banner") {
       await saveBanner(context, preapproval, reference);
+    } else if (reference.type === "administration") {
+      await saveAdministration(context, preapproval, reference);
     } else {
       await saveSubscription(context, preapproval, reference);
     }

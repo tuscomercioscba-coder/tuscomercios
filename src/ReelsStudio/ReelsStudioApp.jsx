@@ -23,6 +23,8 @@ import StickerLibrary from "./StickerLibrary";
 import StickerInspector from "./StickerInspector";
 import LayersManager from "./LayersManager";
 import ProjectRelinkPanel from "./ProjectRelinkPanel";
+import ReelQuickStartPanel from "./ReelQuickStartPanel";
+import ReelTemplateGallery from "./ReelTemplateGallery";
 import { DEFAULT_PROJECT, VIEW_MODES } from "./constants";
 import useHistory from "./useHistory";
 import { generateVideoThumbnails } from "./thumbnailGenerator";
@@ -48,6 +50,10 @@ import {
   createAudioTrack,
   normalizeAudioTrack,
 } from "./audioUtils";
+import {
+  BUILT_IN_MUSIC,
+  createBuiltInMusic,
+} from "./builtInMusic";
 
 import {
   buildProjectTimeline,
@@ -165,7 +171,7 @@ export default function ReelsStudioApp({
   const [mediaItems, setMediaItems] = useState([]);
   const [selectedMediaId, setSelectedMediaId] = useState("");
   const [loadingMedia, setLoadingMedia] = useState(false);
-  const [activeTool, setActiveTool] = useState("media");
+  const [activeTool, setActiveTool] = useState("templates");
 
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeArea, setShowSafeArea] = useState(false);
@@ -339,6 +345,19 @@ export default function ReelsStudioApp({
         }));
 
         setCurrentTime(0);
+      } else if (project.selectedClipId) {
+        const firstItem = newItems[0];
+        setProject((current) => ({
+          ...current,
+          clips: current.clips.map((clip) =>
+            clip.id === current.selectedClipId
+              ? replaceClipMedia(clip, firstItem)
+              : clip
+          ),
+          updatedAt: new Date().toISOString(),
+        }));
+        setPlaying(false);
+        setActiveTool("scene");
       }
     } catch (error) {
       console.error(error);
@@ -1154,6 +1173,223 @@ export default function ReelsStudioApp({
     );
   }
 
+  function addGuidedCopy(objective) {
+    if (!finalDuration || !objective) return;
+
+    const nextZIndex =
+      layers.reduce(
+        (highest, item) => Math.max(highest, Number(item.zIndex || 0)),
+        0
+      ) + 1;
+
+    const titleLayer = ensureMotionLayer({
+      ...createTextLayer({
+        type: LAYER_TYPES.TEXT,
+        currentTime: 0,
+        projectDuration: finalDuration,
+        zIndex: nextZIndex,
+        brandKit,
+      }),
+      text: objective.title,
+      start: 0,
+      end: Math.min(finalDuration, 3.5),
+      position: "top",
+      y: 22,
+      boxWidth: 82,
+      fontSize: 58,
+      uppercase: true,
+    });
+
+    const subtitleStart = Math.min(
+      Math.max(0, finalDuration - 4),
+      Math.max(0, finalDuration * 0.42)
+    );
+    const subtitleLayer = ensureMotionLayer({
+      ...createTextLayer({
+        type: LAYER_TYPES.SUBTITLE,
+        currentTime: subtitleStart,
+        projectDuration: finalDuration,
+        zIndex: nextZIndex + 1,
+        brandKit,
+      }),
+      text: objective.subtitle,
+      start: subtitleStart,
+      end: finalDuration,
+    });
+
+    setLayers((current) => [...current, titleLayer, subtitleLayer]);
+    setSelectedLayerId(titleLayer.id);
+    setCurrentTime(0.12);
+    setPlaying(false);
+    setActiveTool("text");
+  }
+
+  function applyReelTemplate(template) {
+    if (
+      project.clips.length &&
+      !window.confirm(
+        "Esta plantilla reemplazará el Reel actual. ¿Querés continuar?"
+      )
+    ) {
+      return;
+    }
+
+    const sceneDuration = 3;
+    const totalDuration = template.scenes.length * sceneDuration;
+    const escapeXml = (value) =>
+      String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+    const templateMedia = template.scenes.map((scene, index) => {
+      const [dark, color, accent] = template.palette;
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="${dark}"/>
+              <stop offset=".58" stop-color="${color}"/>
+              <stop offset="1" stop-color="${accent}"/>
+            </linearGradient>
+            <filter id="blur"><feGaussianBlur stdDeviation="44"/></filter>
+          </defs>
+          <rect width="1080" height="1920" fill="url(#g)"/>
+          <circle cx="${index % 2 ? 180 : 900}" cy="280" r="310" fill="${accent}" opacity=".22" filter="url(#blur)"/>
+          <circle cx="${index % 2 ? 900 : 150}" cy="1600" r="360" fill="${dark}" opacity=".30"/>
+          <rect x="90" y="110" width="150" height="12" rx="6" fill="white" opacity=".86"/>
+          <rect x="90" y="145" width="80" height="12" rx="6" fill="white" opacity=".42"/>
+          <path d="M-80 ${600 + index * 95} C240 ${410 + index * 75} 730 ${820 - index * 35} 1160 ${520 + index * 55} L1160 1050 C700 790 300 1040 -80 860Z" fill="white" opacity=".10"/>
+          <g opacity=".68">
+            <rect x="90" y="1510" width="900" height="2" fill="white"/>
+            <text x="90" y="1580" fill="white" font-family="Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="8">${escapeXml(scene.eyebrow)}</text>
+            <text x="90" y="1770" fill="white" opacity=".72" font-family="Arial,sans-serif" font-size="25" font-weight="700">TUSCOMERCIOS STUDIO · ${index + 1}/4</text>
+          </g>
+        </svg>`;
+      const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
+      return {
+        id: `template-media-${template.id}-${index}`,
+        type: "image",
+        name: `${template.name} · Escena ${index + 1}`,
+        url,
+        thumbnail: url,
+        duration: sceneDuration,
+        width: 1080,
+        height: 1920,
+        origin: "template",
+      };
+    });
+
+    const clips = templateMedia.map((media, index) => ({
+      ...createClipFromMedia(media, index),
+      id: `template-clip-${template.id}-${index}`,
+      start: 0,
+      end: sceneDuration,
+      sourceDuration: sceneDuration,
+      transition:
+        index < templateMedia.length - 1
+          ? template.transitions[index % template.transitions.length]
+          : "cut",
+      transitionDuration: index < templateMedia.length - 1 ? 0.48 : 0,
+      photoMotion: template.motions[index % template.motions.length],
+    }));
+
+    const templateLayers = template.scenes.flatMap((scene, index) => {
+      const start = index * sceneDuration + 0.12;
+      const end = (index + 1) * sceneDuration - 0.12;
+      const eyebrow = ensureMotionLayer({
+        ...createTextLayer({
+          type: LAYER_TYPES.SUBTITLE,
+          currentTime: start,
+          projectDuration: totalDuration,
+          zIndex: index * 2 + 1,
+          brandKit,
+        }),
+        id: `template-eyebrow-${template.id}-${index}`,
+        text: scene.eyebrow,
+        start,
+        end,
+        x: 50,
+        y: 31,
+        boxWidth: 76,
+        fontSize: 27,
+        letterSpacing: 5,
+        uppercase: true,
+        backgroundColor: template.palette[2],
+        backgroundOpacity: 0.9,
+        color: "#ffffff",
+        animation: "slide-up",
+        animationDuration: 0.55,
+      });
+      const title = ensureMotionLayer({
+        ...createTextLayer({
+          type: LAYER_TYPES.TEXT,
+          currentTime: start,
+          projectDuration: totalDuration,
+          zIndex: index * 2 + 2,
+          brandKit,
+        }),
+        id: `template-title-${template.id}-${index}`,
+        text: scene.text,
+        start,
+        end,
+        x: 50,
+        y: index === 3 ? 57 : 53,
+        boxWidth: 84,
+        fontSize: index === 0 ? 70 : 56,
+        color: "#ffffff",
+        strokeWidth: 0,
+        shadowBlur: 20,
+        animation: template.animations[index % template.animations.length],
+        animationDuration: 0.72,
+        entranceAnimation: index % 2 ? "slide-left" : "pop",
+        loopAnimation: index === 3 ? "pulse" : "none",
+      });
+      return [eyebrow, title];
+    });
+
+    setMediaItems(templateMedia);
+    setLayers(templateLayers);
+    const musicPreset =
+      template.styleName === "Elegante"
+        ? BUILT_IN_MUSIC.find((item) => item.id === "elegant")
+        : template.styleName === "Impacto"
+          ? BUILT_IN_MUSIC.find((item) => item.id === "impact")
+          : BUILT_IN_MUSIC.find((item) => item.id === "energy");
+    const builtInMusic = createBuiltInMusic(musicPreset, totalDuration);
+    setAudioTrack({
+      ...createAudioTrack({
+        url: builtInMusic.url,
+        fileName: builtInMusic.fileName,
+        duration: totalDuration,
+        projectDuration: totalDuration,
+      }),
+      bpm: builtInMusic.bpm,
+      presetId: builtInMusic.presetId,
+      origin: "built-in",
+      fadeIn: 0.25,
+      fadeOut: 0.8,
+      volume: 58,
+    });
+    setVoiceTrack(null);
+    resetProject({
+      ...DEFAULT_PROJECT,
+      name: `${template.name} · ${template.styleName}`,
+      sourceDuration: totalDuration,
+      viewMode: VIEW_MODES.VERTICAL,
+      clips,
+      selectedClipId: clips[0]?.id || "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setSelectedMediaId(templateMedia[0]?.id || "");
+    setSelectedLayerId(templateLayers[0]?.id || "");
+    setCurrentTime(0.12);
+    setPlaying(false);
+    setActiveTool("scene");
+  }
+
   function addSticker(
     sticker
   ) {
@@ -1459,9 +1695,93 @@ export default function ReelsStudioApp({
     setAudioTrack(null);
   }
 
+  function useBuiltInMusic(preset) {
+    if (!preset || !finalDuration) return;
+
+    if (audioTrack?.url?.startsWith("blob:")) {
+      URL.revokeObjectURL(audioTrack.url);
+    }
+
+    const generated = createBuiltInMusic(preset, finalDuration);
+    setAudioTrack({
+      ...createAudioTrack({
+        url: generated.url,
+        fileName: generated.fileName,
+        duration: generated.duration,
+        projectDuration: finalDuration,
+      }),
+      bpm: generated.bpm,
+      presetId: generated.presetId,
+      origin: "built-in",
+      fadeIn: 0.25,
+      fadeOut: 0.8,
+      volume: 58,
+    });
+  }
+
+  function syncScenesToBeat(bpm) {
+    const safeBpm = Math.max(60, Math.min(180, Number(bpm || 120)));
+    if (!project.clips.length || !finalDuration) return;
+
+    const secondsPerBeat = 60 / safeBpm;
+    const averageDuration = finalDuration / project.clips.length;
+    const beatsPerScene = Math.max(
+      2,
+      Math.round(averageDuration / secondsPerBeat)
+    );
+    const targetDuration = beatsPerScene * secondsPerBeat;
+    const nextDuration = targetDuration * project.clips.length;
+    const timeRatio = nextDuration / finalDuration;
+
+    setProject((current) => ({
+      ...current,
+      sourceDuration: nextDuration,
+      clips: current.clips.map((clip) => {
+        const duration =
+          clip.mediaType === "video"
+            ? Math.min(targetDuration, Number(clip.sourceDuration || targetDuration))
+            : targetDuration;
+        return {
+          ...clip,
+          start: 0,
+          end: duration,
+          sourceDuration:
+            clip.mediaType === "image"
+              ? duration
+              : clip.sourceDuration,
+          transitionDuration:
+            clip.transition === "cut"
+              ? 0
+              : Math.min(secondsPerBeat, 0.5),
+        };
+      }),
+      updatedAt: new Date().toISOString(),
+    }));
+
+    setLayers((current) =>
+      current.map((layer) => ({
+        ...layer,
+        start: Number(layer.start || 0) * timeRatio,
+        end: Number(layer.end || 0) * timeRatio,
+      }))
+    );
+    setAudioTrack((current) =>
+      current
+        ? normalizeAudioTrack({
+          ...current,
+          bpm: safeBpm,
+          start: 0,
+          end: nextDuration,
+        })
+        : current
+    );
+    setCurrentTime(0);
+    setPlaying(false);
+  }
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-slate-100 pb-24">
-      <div className="mx-auto max-w-[1800px] p-3 sm:p-4 md:p-6">
+      <div className="mx-auto max-w-[1800px] p-3 sm:p-4 md:p-6 xl:p-3">
         <ProjectRelinkPanel
           pendingProject={pendingProject}
           missingFiles={missingProjectFiles}
@@ -1476,23 +1796,23 @@ export default function ReelsStudioApp({
           }}
         />
 
-        <header className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-5 text-white shadow-2xl md:p-7">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <header className="shrink-0 rounded-[1.6rem] bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950 p-4 text-white shadow-2xl xl:px-5 xl:py-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200">
                 TusComercios Studio
               </p>
 
-              <h1 className="mt-2 text-3xl font-black md:text-5xl">
+              <h1 className="mt-1 text-2xl font-black md:text-3xl">
                 Reels Studio 2.0
               </h1>
 
-              <p className="mt-3 max-w-3xl font-semibold text-blue-100">
+              <p className="mt-3 max-w-3xl font-semibold text-blue-100 xl:hidden">
                 Timeline profesional con miniaturas, zoom, cursor preciso y escenas arrastrables.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -1601,7 +1921,7 @@ export default function ReelsStudioApp({
           />
         </header>
 
-        <div className="mt-4">
+        <div className="mt-3">
           <Toolbar
             disabled={false}
             onUploadVideo={() => fileInputRef.current?.click()}
@@ -1623,16 +1943,18 @@ export default function ReelsStudioApp({
           />
         </div>
 
-        <div className="sticky top-0 z-40 mt-4 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur-xl">
+        <div className="sticky top-0 z-40 mt-3 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur-xl">
           <p className="px-2 pb-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
             Elegí una herramienta
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {[
+              ["templates", "Plantillas"],
+              ["guide", "Inicio rápido"],
               ["media", "Contenido"],
               ["scene", "Escena"],
               ["text", "Texto y movimiento"],
-              ["stickers", "Stickers"],
+              ["stickers", "Stickers y emojis"],
               ["layers", "Capas"],
               ["transition", "Transición"],
               ["recorder", "Grabar pantalla"],
@@ -1656,7 +1978,7 @@ export default function ReelsStudioApp({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="mt-3 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <main className="order-2 min-w-0 space-y-4 xl:order-1">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1950,7 +2272,21 @@ export default function ReelsStudioApp({
 
           </main>
 
-          <aside className="order-1 min-w-0 space-y-4 xl:order-2 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-2">
+          <aside className="order-1 min-w-0 space-y-4 xl:order-2">
+            {activeTool === "templates" && (
+              <ReelTemplateGallery onApply={applyReelTemplate} />
+            )}
+
+            {activeTool === "guide" && (
+              <ReelQuickStartPanel
+                hasContent={Boolean(project.clips.length)}
+                onChooseMedia={() => mediaInputRef.current?.click()}
+                onCreateCopy={addGuidedCopy}
+                onOpenMusic={() => setActiveTool("audio")}
+                onExport={() => setActiveTool("export")}
+              />
+            )}
+
             {activeTool === "media" && <MediaLibrary
               mediaItems={mediaItems}
               selectedMediaId={selectedMediaId}
@@ -1958,6 +2294,8 @@ export default function ReelsStudioApp({
               onUpload={uploadMediaFiles}
               onSelect={setSelectedMediaId}
               onAddScene={addMediaAsScene}
+              onReplaceScene={replaceSelectedClipMedia}
+              hasSelectedScene={Boolean(selectedClip)}
               onRemove={removeMedia}
             />}
 
@@ -1988,6 +2326,8 @@ export default function ReelsStudioApp({
                 onUpload={uploadAudio}
                 onChange={changeAudioTrack}
                 onRemove={removeAudioTrack}
+                onUsePreset={useBuiltInMusic}
+                onSyncBeat={syncScenesToBeat}
               />
             </div>}
 

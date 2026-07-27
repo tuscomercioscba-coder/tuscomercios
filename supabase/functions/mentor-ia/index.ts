@@ -236,6 +236,7 @@ function directorEditorType(studioContext: any) {
   const source = String(studioContext?.source || "").toLowerCase();
   if (source === "image-editor") return "image";
   if (source === "reels-studio") return "reel";
+  if (source === "carousel-studio") return "carousel";
   return null;
 }
 
@@ -244,7 +245,7 @@ async function getDirectorUsage(
   userId: string,
   entityType: string,
   entityId: string,
-  editorType: "image" | "reel",
+  editorType: "image" | "reel" | "carousel",
 ) {
   const usageDate = argentinaDateKey();
 
@@ -271,7 +272,7 @@ async function incrementDirectorUsage(
   userId: string,
   entityType: string,
   entityId: string,
-  editorType: "image" | "reel",
+  editorType: "image" | "reel" | "carousel",
   usageDate: string,
   used: number,
 ) {
@@ -419,7 +420,9 @@ Deno.serve(async (req) => {
     if (!unlimited && Number(remaining) <= 0) {
       const editorName = editorType === "image"
         ? "Editor de Imágenes"
-        : "Reels Studio";
+        : editorType === "carousel"
+          ? "Editor de Carruseles"
+          : "Reels Studio";
 
       return json(
         {

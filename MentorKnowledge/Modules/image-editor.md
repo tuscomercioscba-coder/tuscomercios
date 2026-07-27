@@ -3,7 +3,8 @@
 Funciones reales:
 - Modos Fácil y Profesional.
 - Formatos sociales y cambio de tamaño del lienzo.
-- Plantillas.
+- Galería de plantillas comerciales y fechas especiales argentinas.
+- Reemplazo de fotos manteniendo composición, filtros y estilo de la plantilla.
 - Imagen principal e imágenes adicionales.
 - Logo desde el Brand Kit.
 - Textos editables.
@@ -22,6 +23,7 @@ Funciones reales:
 - Guardar proyecto como JSON y volver a abrirlo.
 - Exportar y descargar en PNG, JPG o WebP con escala disponible.
 - El diseño exportado se guarda en la Biblioteca de Studio cuando corresponde.
+- Análisis del proyecto con Mentor IA: 1 diario en Estándar y 2 en Premium.
 
 Consejos que Mentor puede dar:
 - Jerarquía de texto, contraste, composición, ubicación, tamaño, formato, CTA y uso de colores de marca.

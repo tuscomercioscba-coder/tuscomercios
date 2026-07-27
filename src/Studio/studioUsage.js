@@ -16,11 +16,15 @@ export async function claimStudioUsage({ businessId, contentType }) {
 
   if (!result?.allowed) {
     const limit = Number(result?.daily_limit || 0);
+    const labels = {
+      image: "imágenes",
+      reel: "Reels",
+      carousel: "carruseles",
+      analysis: "análisis de Mentor IA",
+    };
     throw new Error(
       limit > 0
-        ? `Alcanzaste el límite diario de ${limit} ${
-            contentType === "reel" ? "Reels" : "imágenes"
-          }.`
+        ? `Alcanzaste el límite diario de ${limit} ${labels[contentType] || "contenidos"}.`
         : "Studio requiere un plan Estándar o Premium."
     );
   }

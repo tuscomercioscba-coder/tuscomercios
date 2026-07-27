@@ -73,7 +73,7 @@ const PLAN_LIMITS = {
     maxDescription: 1000,
     social: true,
     web: false,
-    video: false,
+    video: true,
     services: false,
   },
   premium: {
@@ -171,6 +171,7 @@ function slugify(text) {
 
 function emptyDay() {
   return {
+    confirmed: false,
     enabled: false,
     mode: "continuous",
     open: "",
@@ -188,7 +189,9 @@ function emptyHorarios() {
 }
 
 function parseSavedSchedule(value) {
-  if (!value || value === "Cerrado") return emptyDay();
+  if (!value || value === "Cerrado") {
+    return { ...emptyDay(), confirmed: true };
+  }
 
   const turns = String(value)
     .split("/")
@@ -204,6 +207,7 @@ function parseSavedSchedule(value) {
     .map((part) => part.trim());
 
   return {
+    confirmed: true,
     enabled: Boolean(open && close),
     mode: open2 && close2 ? "split" : "continuous",
     open,
@@ -214,9 +218,12 @@ function parseSavedSchedule(value) {
 }
 
 function getScheduleCompletion(horarios) {
-  return DIAS_ORDEN.some((dia) => {
+  return DIAS_ORDEN.every((dia) => {
     const value = horarios[dia];
-    return value?.enabled && value.open && value.close;
+    if (!value?.confirmed) return false;
+    if (!value.enabled) return true;
+    if (!value.open || !value.close) return false;
+    return value.mode !== "split" || Boolean(value.open2 && value.close2);
   });
 }
 
@@ -447,13 +454,18 @@ function ScheduleDay({
     onChange(day, field, nextValue);
   };
 
+  const toggleDay = () => {
+    update("enabled", !enabled);
+    update("confirmed", true);
+  };
+
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => update("enabled", !enabled)}
+            onClick={toggleDay}
             className={`relative h-7 w-12 rounded-full transition ${enabled ? "bg-emerald-500" : "bg-slate-300"}`}
             aria-label={`${enabled ? "Cerrar" : "Abrir"} ${DIAS_LABEL[day]}`}
           >
@@ -462,7 +474,11 @@ function ScheduleDay({
           <div>
             <h3 className="font-black text-slate-950">{DIAS_LABEL[day]}</h3>
             <p className={`text-xs font-bold ${enabled ? "text-emerald-600" : "text-slate-400"}`}>
-              {enabled ? "Abierto" : "Cerrado"}
+              {enabled
+                ? "Atiendo este día"
+                : value?.confirmed
+                  ? "Este día no atiendo"
+                  : "Definí si atendés este día"}
             </p>
           </div>
         </div>
@@ -937,6 +953,7 @@ export default function RegisterBusiness() {
       [day]: {
         ...previous[day],
         [field]: value,
+        ...(field !== "confirmed" ? { confirmed: true } : {}),
         ...(field === "mode" && value === "continuous"
           ? { open2: "", close2: "" }
           : {}),
@@ -1020,15 +1037,47 @@ export default function RegisterBusiness() {
     }
   }
 
-  function handleVideo(files) {
+  async function handleVideo(files) {
     const file = files?.[0];
 
     if (!limits.video) {
-      alert("El video está disponible en el plan Premium.");
+      alert("El video está disponible en los planes Estándar y Premium.");
       return;
     }
 
-    if (file) setVideoFile(file);
+    if (!file) return;
+
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      alert("Usá un video MP4 o WebM para que funcione bien en todos los celulares.");
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      alert("El video supera los 25 MB. Comprimilo antes de subirlo.");
+      return;
+    }
+
+    const duration = await new Promise((resolve) => {
+      const preview = document.createElement("video");
+      const url = URL.createObjectURL(file);
+      preview.preload = "metadata";
+      preview.onloadedmetadata = () => {
+        resolve(preview.duration);
+        URL.revokeObjectURL(url);
+      };
+      preview.onerror = () => {
+        resolve(0);
+        URL.revokeObjectURL(url);
+      };
+      preview.src = url;
+    });
+
+    if (duration > 60) {
+      alert("El video debe durar como máximo 60 segundos.");
+      return;
+    }
+
+    setVideoFile(file);
   }
 
   async function getLocation() {
@@ -1883,7 +1932,7 @@ export default function RegisterBusiness() {
                             Video del negocio
                           </h3>
                           <p className="mt-1 text-sm leading-6 text-violet-800">
-                            Mostrá el local, productos, servicios o una presentación breve.
+                            Mostrá el local, productos o servicios. MP4 o WebM, hasta 25 MB y 60 segundos.
                           </p>
                         </div>
                       </div>
@@ -1893,7 +1942,7 @@ export default function RegisterBusiness() {
                         Elegir video
                         <input
                           type="file"
-                          accept="video/*"
+                          accept="video/mp4,video/webm"
                           onChange={(event) => handleVideo(event.target.files)}
                           className="hidden"
                         />
@@ -1913,7 +1962,7 @@ export default function RegisterBusiness() {
                   <UpgradeCard
                     icon={Video}
                     title="Video del negocio"
-                    requiredPlan="Premium"
+                    requiredPlan="Estándar"
                     description="Agregá un video para mostrar tu local, productos, trabajos o presentación profesional."
                     onUpgrade={goToPlans}
                     color="violet"

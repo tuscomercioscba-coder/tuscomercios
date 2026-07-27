@@ -116,7 +116,7 @@ export function createClipFromMedia(media, index = 0) {
       duration,
       Number(media.duration || duration)
     ),
-    fit: "cover",
+    fit: "smart",
     mediaX: 50,
     mediaY: 50,
     mediaScale: 100,
@@ -155,6 +155,11 @@ export function replaceClipMedia(clip, media) {
     start: 0,
     end: defaultDuration,
     sourceDuration: defaultDuration,
+    fit: "smart",
+    mediaX: 50,
+    mediaY: 50,
+    mediaScale: 100,
+    mediaRotation: 0,
     photoMotion:
       media.type === MEDIA_TYPES.IMAGE
         ? clip.photoMotion || "zoom-in"

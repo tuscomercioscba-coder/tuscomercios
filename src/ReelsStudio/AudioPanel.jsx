@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { BUILT_IN_MUSIC } from "./builtInMusic";
 
 export default function AudioPanel({
   track,
@@ -7,6 +8,8 @@ export default function AudioPanel({
   onUpload,
   onChange,
   onRemove,
+  onUsePreset,
+  onSyncBeat,
 }) {
   const inputRef = useRef(null);
 
@@ -21,8 +24,28 @@ export default function AudioPanel({
       </h3>
 
       <p className="mt-2 text-sm font-semibold text-slate-500">
-        Subí música propia o libre de derechos. Podés ajustar volumen, inicio y final.
+        Elegí una base original o subí música propia. Las escenas pueden
+        sincronizarse automáticamente con su ritmo.
       </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {BUILT_IN_MUSIC.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onUsePreset(preset)}
+            className="min-h-20 rounded-2xl border border-fuchsia-100 bg-gradient-to-br from-white to-fuchsia-50 p-3 text-left disabled:opacity-40"
+          >
+            <span className="block text-sm font-black text-slate-900">
+              {preset.name}
+            </span>
+            <span className="mt-1 block text-[11px] font-bold text-fuchsia-700">
+              {preset.mood} · {preset.bpm} BPM
+            </span>
+          </button>
+        ))}
+      </div>
 
       <input
         ref={inputRef}
@@ -52,6 +75,16 @@ export default function AudioPanel({
           <p className="truncate text-xs font-black text-slate-500">
             {track.name}
           </p>
+
+          {track.bpm && (
+            <button
+              type="button"
+              onClick={() => onSyncBeat(track.bpm)}
+              className="min-h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 font-black text-white"
+            >
+              ✨ Sincronizar escenas a {track.bpm} BPM
+            </button>
+          )}
 
           <Range
             label="Volumen"

@@ -6,8 +6,8 @@ import StudioLibrary from "../components/studio/StudioLibrary";
 import StudioWorkspaceSelector from "../components/studio/StudioWorkspaceSelector";
 
 const PLAN_LIMITS = {
-  standard: { image: 10, reel: 1 },
-  premium: { image: 20, reel: 2 },
+  standard: { image: 10, reel: 1, carousel: 2 },
+  premium: { image: 20, reel: 2, carousel: 4 },
 };
 
 export default function Studio() {
@@ -16,7 +16,7 @@ export default function Studio() {
   const [workspaces, setWorkspaces] = useState([]);
   const [businesses, setBusinesses] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [usage, setUsage] = useState({ image: 0, reel: 0 });
+  const [usage, setUsage] = useState({ image: 0, reel: 0, carousel: 0 });
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -32,7 +32,7 @@ export default function Studio() {
     ) {
       loadDailyUsage(selectedItem.id);
     } else {
-      setUsage({ image: 0, reel: 0 });
+      setUsage({ image: 0, reel: 0, carousel: 0 });
     }
   }, [selectedItem?.id, selectedItem?.entityType]);
 
@@ -44,6 +44,7 @@ export default function Studio() {
       return {
         image: Infinity,
         reel: Infinity,
+        carousel: Infinity,
       };
     }
 
@@ -61,6 +62,10 @@ export default function Studio() {
   const reelRemaining = unlimited
     ? Infinity
     : Math.max(0, limits.reel - usage.reel);
+
+  const carouselRemaining = unlimited
+    ? Infinity
+    : Math.max(0, limits.carousel - usage.carousel);
 
   async function loadStudio() {
     try {
@@ -187,6 +192,7 @@ export default function Studio() {
         setUsage({
           image: 0,
           reel: 0,
+          carousel: 0,
         });
         return;
       }
@@ -194,6 +200,7 @@ export default function Studio() {
       const counts = {
         image: 0,
         reel: 0,
+        carousel: 0,
       };
 
       (data || []).forEach((item) => {
@@ -203,6 +210,9 @@ export default function Studio() {
 
         if (item.content_type === "reel") {
           counts.reel += 1;
+        }
+        if (item.content_type === "carousel") {
+          counts.carousel += 1;
         }
       });
 
@@ -284,6 +294,27 @@ export default function Studio() {
       `/generar-reel/${isWorkspace ? "workspace" : "business"
       }/${selectedItem.id}`
     );
+  }
+
+  function openCarouselEditor() {
+    if (!selectedItem) return;
+
+    if (!isAdmin && !isWorkspace && carouselRemaining <= 0) {
+      alert("Alcanzaste el límite diario de carruseles.");
+      return;
+    }
+
+    navigate(
+      `/studio/carrusel/${isWorkspace ? "workspace" : "business"}/${selectedItem.id}`
+    );
+  }
+
+  function openStories() {
+    if (isWorkspace) {
+      alert("Las historias se publican desde un comercio.");
+      return;
+    }
+    navigate("/studio/historias");
   }
 
   if (loading) {
@@ -381,7 +412,7 @@ export default function Studio() {
                   }
                 />
 
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-3">
                   <ToolCard
                     type="image"
                     title="Crear imágenes"
@@ -396,6 +427,22 @@ export default function Studio() {
                     unlimited={unlimited}
                     loading={loadingUsage}
                     onClick={openImageEditor}
+                  />
+
+                  <ToolCard
+                    type="carousel"
+                    title="Crear carruseles"
+                    description={
+                      isWorkspace
+                        ? "Carruseles institucionales con páginas coordinadas."
+                        : "Entre 4 y 10 páginas con guiones preparados según tu rubro."
+                    }
+                    used={usage.carousel}
+                    limit={limits.carousel}
+                    remaining={carouselRemaining}
+                    unlimited={unlimited}
+                    loading={loadingUsage}
+                    onClick={openCarouselEditor}
                   />
 
                   <ToolCard
@@ -419,6 +466,23 @@ export default function Studio() {
               <section className="space-y-4">
                 <SectionHeader
                   eyebrow="Paso 4"
+                  title="Publicá y programá"
+                  description="Convertí el contenido creado en historias y organizá la semana desde el calendario."
+                />
+
+                <JourneyCard
+                  step="4"
+                  title="Historias y calendario"
+                  description="Publicá imágenes o videos durante 24 horas, agregá botones y programá cada contenido."
+                  action="Abrir calendario"
+                  gradient="from-red-600 to-blue-700"
+                  onClick={openStories}
+                />
+              </section>
+
+              <section className="space-y-4">
+                <SectionHeader
+                  eyebrow="Paso 5"
                   title="Biblioteca"
                   description="Acá vas a encontrar el contenido creado y guardado en Studio."
                 />

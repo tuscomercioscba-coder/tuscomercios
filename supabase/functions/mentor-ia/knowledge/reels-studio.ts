@@ -4,6 +4,7 @@ OBJETIVO Y MEDIOS
 - Crear reels verticales con fotos, videos, textos, subtítulos, stickers, música, voz y grabaciones.
 - Subir fotos, videos y varios medios; biblioteca/bandeja de medios, búsqueda y eliminación de recursos.
 - Agregar medios como escenas y reemplazar el medio del clip seleccionado.
+- Galería de plantillas editables comerciales y de fechas especiales con escenas, transiciones, animaciones y ritmo preparados.
 ESCENAS, VIDEO Y ENCUADRE
 - Escenas/clips con duración editable, selección y eliminación.
 - Recorte visual de video: comienzo/fin del video y ubicación dentro del reel.
@@ -28,9 +29,11 @@ ANIMACIÓN, MOVIMIENTO Y TRANSICIONES
 - Opciones confirmadas incluyen sin animación, aparecer suave, desde arriba/abajo/izquierda/derecha, zoom, zoom-aparecer, rebote, giro suave, typewriter y movimientos disponibles.
 - Movimiento/cámara: sin movimiento, zoom lento, alejar lentamente, mover hacia izquierda/derecha y otros presets implementados.
 - Transiciones confirmadas por el motor: fade, slide-left, slide-right, slide-up, zoom, zoom-out, zoom-fade, split-vertical y cut, según inspector.
+- Biblioteca ampliada de transiciones, animaciones de texto, stickers, emojis y elementos comerciales.
 AUDIO Y VOZ
 - Subir música/audio; pista con comienzo, fin, volumen y ajuste temporal.
 - Vista previa de audio.
+- Música preparada por estilo y sincronización orientativa por BPM para acompañar el ritmo de escenas y transiciones.
 - Subir o grabar voz; controlar comienzo, final y volumen de voz.
 - La música no debe tapar la voz.
 GRABACIÓN DE PANTALLA
@@ -43,6 +46,7 @@ PROYECTOS
 EXPORTACIÓN
 - Panel de exportación profesional; generar el reel en el formato disponible, normalmente MP4 mediante el proceso del editor.
 - Guardar/exportar contenido compatible a Biblioteca.
+- El botón Analizar con Mentor IA revisa el contexto técnico del Reel; Estándar dispone de 1 análisis diario y Premium de 2.
 Consejos válidos:
 - Gancho en el primer segundo, escenas cortas, poco texto, zona segura, transiciones moderadas, CTA final y revisión de volumen.
 No disponible o no garantizado:

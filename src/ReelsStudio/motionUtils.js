@@ -109,6 +109,42 @@ export const SCENE_TRANSITIONS = [
     description: "Movimiento de impacto.",
     duration: 0.4,
   },
+  {
+    id: "diagonal",
+    label: "Diagonal",
+    description: "Desplazamiento diagonal dinámico.",
+    duration: 0.45,
+  },
+  {
+    id: "rotate-left",
+    label: "Giro izquierdo",
+    description: "Giro cinematográfico hacia la izquierda.",
+    duration: 0.5,
+  },
+  {
+    id: "rotate-right",
+    label: "Giro derecho",
+    description: "Giro cinematográfico hacia la derecha.",
+    duration: 0.5,
+  },
+  {
+    id: "shrink",
+    label: "Contraer",
+    description: "Aleja la escena antes del cambio.",
+    duration: 0.45,
+  },
+  {
+    id: "elastic",
+    label: "Elástica",
+    description: "Movimiento flexible de salida.",
+    duration: 0.5,
+  },
+  {
+    id: "glitch",
+    label: "Glitch",
+    description: "Impacto digital rápido.",
+    duration: 0.3,
+  },
 ];
 
 export function ensureMotionLayer(layer = {}) {
@@ -465,6 +501,59 @@ export function getSceneTransitionStyle(
           wave * (1 - progress) * 1.5,
         scale:
           1 + (1 - progress) * 0.025,
+      };
+
+    case "diagonal":
+      return {
+        ...base,
+        active: true,
+        progress,
+        translateX: -eased * 88,
+        translateY: eased * 88,
+        opacity: 1 - eased * 0.2,
+      };
+
+    case "rotate-left":
+    case "rotate-right": {
+      const direction = transition === "rotate-left" ? -1 : 1;
+      return {
+        ...base,
+        active: true,
+        progress,
+        rotate: eased * 24 * direction,
+        scale: 1 - eased * 0.16,
+        opacity: 1 - eased * 0.28,
+      };
+    }
+
+    case "shrink":
+      return {
+        ...base,
+        active: true,
+        progress,
+        scale: 1 - eased * 0.42,
+        opacity: 1 - eased * 0.45,
+        darkOpacity: eased * 0.22,
+      };
+
+    case "elastic":
+      return {
+        ...base,
+        active: true,
+        progress,
+        translateX: -eased * 100 + wave * (1 - progress) * 12,
+        scale: 1 + Math.abs(wave) * (1 - progress) * 0.05,
+      };
+
+    case "glitch":
+      return {
+        ...base,
+        active: true,
+        progress,
+        translateX: wave * (1 - progress) * 15,
+        translateY: Math.cos(progress * Math.PI * 7) * (1 - progress) * 7,
+        flashOpacity: Math.abs(wave) * 0.28,
+        opacity: 1 - eased * 0.18,
       };
 
     default:

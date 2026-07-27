@@ -1,4 +1,4 @@
-export const MODERN_STICKERS = [
+const BASE_MODERN_STICKERS = [
   {
     "id": "badge-0",
     "category": "ventas",
@@ -229,6 +229,102 @@ export const MODERN_STICKERS = [
   }
 ];
 
+function createInlineSticker({
+  id,
+  category,
+  name,
+  emoji,
+  from = "#7c3aed",
+  to = "#2563eb",
+}) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="560" height="360" viewBox="0 0 560 360">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="${from}"/>
+          <stop offset="1" stop-color="${to}"/>
+        </linearGradient>
+        <filter id="s"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-opacity=".22"/></filter>
+      </defs>
+      <g filter="url(#s)">
+        <rect x="28" y="35" width="504" height="290" rx="84" fill="url(#g)"/>
+        <circle cx="472" cy="92" r="42" fill="white" opacity=".16"/>
+        <path d="M58 257 C180 196 335 318 510 210" fill="none" stroke="white" stroke-width="10" opacity=".14"/>
+      </g>
+      <text x="280" y="154" text-anchor="middle" font-family="Arial,sans-serif" font-size="76">${emoji}</text>
+      <text x="280" y="238" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="38" font-weight="900" letter-spacing="2">${name}</text>
+    </svg>`;
+  return {
+    id,
+    category,
+    name,
+    src: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+  };
+}
+
+const EMOJI_STICKERS = [
+  ["heart", "AMOR", "❤️"], ["fire", "FUEGO", "🔥"],
+  ["shine", "BRILLOS", "✨"], ["star-emoji", "ESTRELLA", "⭐"],
+  ["party", "FIESTA", "🎉"], ["present", "REGALO", "🎁"],
+  ["cake", "CUMPLE", "🎂"], ["balloon", "GLOBOS", "🎈"],
+  ["celebrate", "CELEBRAR", "🥳"], ["love-face", "ME ENCANTA", "😍"],
+  ["thumb", "GENIAL", "👍"], ["clap", "APLAUSOS", "👏"],
+  ["rocket-emoji", "DESPEGÁ", "🚀"], ["idea", "IDEA", "💡"],
+  ["pin", "UBICACIÓN", "📍"], ["call", "LLAMANOS", "📞"],
+  ["cart", "COMPRÁ", "🛒"], ["delivery", "ENVÍOS", "🚚"],
+  ["hundred", "100%", "💯"], ["camera", "MIRÁ", "📸"],
+].map(([id, name, emoji], index) =>
+  createInlineSticker({
+    id: `emoji-${id}`,
+    category: "emojis",
+    name,
+    emoji,
+    from: index % 3 === 0 ? "#ec4899" : index % 3 === 1 ? "#7c3aed" : "#0ea5e9",
+    to: index % 2 ? "#2563eb" : "#f97316",
+  })
+);
+
+const DATE_STICKERS = [
+  ["navidad", "NAVIDAD", "🎄"], ["new-year", "AÑO NUEVO", "🎆"],
+  ["father", "PAPÁ", "💙"], ["mother", "MAMÁ", "🌷"],
+  ["friends", "AMIGOS", "🫶"], ["children", "INFANCIAS", "🎠"],
+  ["spring", "PRIMAVERA", "🌼"], ["easter", "PASCUAS", "🐰"],
+  ["birthday-date", "CUMPLEAÑOS", "🎂"], ["worker", "TRABAJO", "🛠️"],
+  ["argentina", "ARGENTINA", "🇦🇷"], ["halloween", "HALLOWEEN", "🎃"],
+].map(([id, name, emoji], index) =>
+  createInlineSticker({
+    id: `date-${id}`,
+    category: "fechas",
+    name,
+    emoji,
+    from: index % 2 ? "#0f172a" : "#dc2626",
+    to: index % 3 ? "#7c3aed" : "#16a34a",
+  })
+);
+
+const CTA_STICKERS = [
+  ["buy", "COMPRÁ AHORA", "🛍️"], ["write", "ESCRIBINOS", "💬"],
+  ["book", "RESERVÁ", "📅"], ["more", "CONOCÉ MÁS", "👀"],
+  ["order", "PEDÍ HOY", "📦"], ["visit", "VISITANOS", "📍"],
+  ["offer", "OFERTA", "⚡"], ["limited", "ÚLTIMOS DÍAS", "⏰"],
+].map(([id, name, emoji], index) =>
+  createInlineSticker({
+    id: `cta-${id}`,
+    category: "llamados",
+    name,
+    emoji,
+    from: index % 2 ? "#2563eb" : "#e11d48",
+    to: index % 2 ? "#06b6d4" : "#f97316",
+  })
+);
+
+export const MODERN_STICKERS = [
+  ...BASE_MODERN_STICKERS,
+  ...EMOJI_STICKERS,
+  ...DATE_STICKERS,
+  ...CTA_STICKERS,
+];
+
 export const STICKER_CATEGORIES = [
   {
     "id": "ventas",
@@ -249,5 +345,17 @@ export const STICKER_CATEGORIES = [
   {
     "id": "decoracion",
     "label": "Decoración"
+  },
+  {
+    "id": "emojis",
+    "label": "Emojis"
+  },
+  {
+    "id": "fechas",
+    "label": "Fechas"
+  },
+  {
+    "id": "llamados",
+    "label": "Llamados"
   }
 ];

@@ -12,6 +12,14 @@ export const TEXT_ANIMATIONS = [
   { id: "rotate", label: "Giro suave" },
   { id: "pop", label: "Pop" },
   { id: "pulse", label: "Pulso" },
+  { id: "elastic", label: "Elástico" },
+  { id: "drop", label: "Caída" },
+  { id: "rise", label: "Ascenso" },
+  { id: "whip-left", label: "Latigazo izquierdo" },
+  { id: "whip-right", label: "Latigazo derecho" },
+  { id: "swing", label: "Balanceo" },
+  { id: "flip", label: "Volteo" },
+  { id: "shrink", label: "Contraer" },
 ];
 
 function clamp(value, min = 0, max = 1) {
@@ -272,6 +280,65 @@ export function getTextAnimationState({
       ...base,
       opacity: eased,
       scale: pulse,
+    };
+  }
+
+  if (animation === "elastic") {
+    const elastic = easeOutBack(progress);
+    return {
+      ...base,
+      opacity: progress > 0 ? 1 : 0,
+      scale: 0.35 + elastic * 0.65,
+      rotate: (1 - eased) * -7,
+    };
+  }
+
+  if (animation === "drop" || animation === "rise") {
+    return {
+      ...base,
+      opacity: eased,
+      translateY:
+        (1 - easeOutBounce(progress)) *
+        (animation === "drop" ? -85 : 85),
+      rotate: (1 - eased) * (animation === "drop" ? -8 : 8),
+    };
+  }
+
+  if (animation === "whip-left" || animation === "whip-right") {
+    const direction = animation === "whip-left" ? -1 : 1;
+    return {
+      ...base,
+      opacity: eased,
+      translateX: (1 - eased) * 95 * direction,
+      rotate: (1 - eased) * 16 * direction,
+    };
+  }
+
+  if (animation === "swing") {
+    return {
+      ...base,
+      opacity: eased,
+      rotate:
+        Math.sin(progress * Math.PI * 4) *
+        (1 - progress) *
+        18,
+    };
+  }
+
+  if (animation === "flip") {
+    return {
+      ...base,
+      opacity: eased,
+      rotate: (1 - eased) * 88,
+      scale: 0.7 + eased * 0.3,
+    };
+  }
+
+  if (animation === "shrink") {
+    return {
+      ...base,
+      opacity: eased,
+      scale: 1.55 - eased * 0.55,
     };
   }
 

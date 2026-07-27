@@ -273,6 +273,8 @@ export default function PlansPage() {
   const studioRows = [
     { label: "Editor de imágenes", icon: "palette", free: <No />, standard: "10 por día", premium: "20 por día" },
     { label: "Reels Studio", icon: "clapper", free: <No />, standard: "1 por día", premium: "2 por día" },
+    { label: "Editor de carruseles", icon: "image", free: <No />, standard: "2 por día", premium: "4 por día" },
+    { label: "Análisis creativo con Mentor IA", icon: "sparkles", free: <No />, standard: "1 por editor/día", premium: "2 por editor/día" },
     { label: "Filtros y estilos", icon: "sparkles", free: <No />, standard: <Yes />, premium: <Yes /> },
   ];
 
@@ -348,7 +350,8 @@ export default function PlansPage() {
           >
             <Yes>10 fotos y 1 video</Yes>
             <Yes>Redes sociales visibles</Yes>
-            <Yes>Studio: 10 imágenes y 1 Reel por día</Yes>
+            <Yes>Studio: 10 imágenes, 1 Reel y 2 carruseles por día</Yes>
+            <Yes>1 análisis creativo por editor y por día</Yes>
             <Yes>Mentor IA: 15 respuestas por día</Yes>
           </PlanCard>
 
@@ -366,7 +369,8 @@ export default function PlansPage() {
           >
             <Yes>15 fotos y 2 videos</Yes>
             <Yes>Mapa visible en la vidriera</Yes>
-            <Yes>Studio: 20 imágenes y 2 Reels por día</Yes>
+            <Yes>Studio: 20 imágenes, 2 Reels y 4 carruseles por día</Yes>
+            <Yes>2 análisis creativos por editor y por día</Yes>
             <Yes>Mentor IA: 40 respuestas por día</Yes>
           </PlanCard>
         </section>
@@ -393,7 +397,7 @@ export default function PlansPage() {
             <ModuleCard
               icon="palette"
               title="TusComercios Studio"
-              subtitle="Herramientas para crear imágenes y Reels de manera simple."
+              subtitle="Herramientas para crear imágenes, Reels y carruseles profesionales."
               rows={studioRows}
               accent="violet"
             />
