@@ -6,6 +6,9 @@ export const ENTRANCE_ANIMATIONS = [
   { id: "slide-right", label: "Desde derecha" },
   { id: "zoom", label: "Zoom" },
   { id: "pop", label: "Pop" },
+  { id: "stamp", label: "Sello" },
+  { id: "drop", label: "Caída" },
+  { id: "drift", label: "Deslizar suave" },
 ];
 
 export const LOOP_ANIMATIONS = [
@@ -13,6 +16,8 @@ export const LOOP_ANIMATIONS = [
   { id: "breathe", label: "Respirar" },
   { id: "float", label: "Flotar" },
   { id: "pulse", label: "Pulso" },
+  { id: "wobble", label: "Balanceo" },
+  { id: "microzoom", label: "Zoom suave" },
 ];
 
 export const EXIT_ANIMATIONS = [
@@ -22,6 +27,7 @@ export const EXIT_ANIMATIONS = [
   { id: "slide-left", label: "Hacia izquierda" },
   { id: "slide-right", label: "Hacia derecha" },
   { id: "zoom", label: "Zoom" },
+  { id: "drop", label: "Caída" },
 ];
 
 export const SCENE_TRANSITIONS = [
@@ -145,6 +151,11 @@ export const SCENE_TRANSITIONS = [
     description: "Impacto digital rápido.",
     duration: 0.3,
   },
+  { id: "cross-zoom", label: "Zoom cruzado", description: "Zoom rápido de conexión.", duration: 0.42 },
+  { id: "soft-flash", label: "Destello suave", description: "Luz clara delicada.", duration: 0.35 },
+  { id: "slide-diagonal", label: "Desliz diagonal", description: "Movimiento diagonal moderno.", duration: 0.45 },
+  { id: "bounce", label: "Rebote", description: "Salida elástica con impacto.", duration: 0.5 },
+  { id: "cinema-black", label: "Cine negro", description: "Fundido oscuro cinematográfico.", duration: 0.55 },
 ];
 
 export function ensureMotionLayer(layer = {}) {
@@ -228,6 +239,19 @@ export function getLayerMotionStyle(layer, currentTime) {
         opacity = p;
         scale = p < 0.75 ? 0.6 + p * 0.65 : 1.08 - (p - 0.75) * 0.32;
         break;
+      case "stamp":
+        opacity = p;
+        scale = 1.7 - p * 0.7;
+        break;
+      case "drop":
+        opacity = p;
+        translateY = (1 - p) * -90;
+        break;
+      case "drift":
+        opacity = p;
+        translateX = (1 - p) * 35;
+        translateY = (1 - p) * 20;
+        break;
       default:
         break;
     }
@@ -256,6 +280,10 @@ export function getLayerMotionStyle(layer, currentTime) {
         opacity *= p;
         scale *= 0.75 + p * 0.25;
         break;
+      case "drop":
+        opacity *= p;
+        translateY += (1 - p) * 90;
+        break;
       default:
         break;
     }
@@ -272,6 +300,12 @@ export function getLayerMotionStyle(layer, currentTime) {
       break;
     case "pulse":
       opacity *= 0.88 + (Math.sin(loopTime * 4) + 1) * 0.06;
+      break;
+    case "wobble":
+      translateX += Math.sin(loopTime * 4.2) * 5;
+      break;
+    case "microzoom":
+      scale *= 1 + (Math.sin(loopTime * 2.4) + 1) * 0.018;
       break;
     default:
       break;
@@ -554,6 +588,46 @@ export function getSceneTransitionStyle(
         translateY: Math.cos(progress * Math.PI * 7) * (1 - progress) * 7,
         flashOpacity: Math.abs(wave) * 0.28,
         opacity: 1 - eased * 0.18,
+      };
+
+    case "cross-zoom":
+      return {
+        ...base, active: true, progress,
+        scale: 1 + eased * 0.42,
+        blur: eased * 7,
+        opacity: 1 - eased * 0.42,
+      };
+
+    case "soft-flash": {
+      const flash = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+      return {
+        ...base, active: true, progress,
+        flashOpacity: Math.max(0, flash * 0.55),
+        opacity: 1 - eased * 0.12,
+      };
+    }
+
+    case "slide-diagonal":
+      return {
+        ...base, active: true, progress,
+        translateX: eased * 92,
+        translateY: -eased * 92,
+        opacity: 1 - eased * 0.2,
+      };
+
+    case "bounce":
+      return {
+        ...base, active: true, progress,
+        translateY: eased * 100 - Math.abs(wave) * (1 - progress) * 22,
+        scale: 1 - Math.abs(wave) * (1 - progress) * 0.06,
+      };
+
+    case "cinema-black":
+      return {
+        ...base, active: true, progress,
+        opacity: 1 - eased,
+        darkOpacity: eased,
+        scale: 1 + eased * 0.035,
       };
 
     default:

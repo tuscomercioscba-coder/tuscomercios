@@ -37,6 +37,21 @@ function imageId() {
   return `carousel-image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function fitImageBox(naturalAspect, format) {
+  const canvasAspect = Number(format?.width || 1) / Number(format?.height || 1);
+  const safeAspect = Math.max(0.08, Number(naturalAspect || 1));
+  let width = 84;
+  let height = (width * canvasAspect) / safeAspect;
+  if (height > 55) {
+    height = 55;
+    width = (height * safeAspect) / canvasAspect;
+  }
+  return {
+    width: Math.max(12, Math.min(90, width)),
+    height: Math.max(12, Math.min(70, height)),
+  };
+}
+
 function normalizeImages(page) {
   if (Array.isArray(page?.images)) return page.images;
   if (!page?.image) return [];
@@ -263,13 +278,19 @@ export default function StudioCarousel() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
+      const source = String(reader.result || "");
+      const probe = new Image();
+      probe.onload = () => {
+        const naturalAspect = probe.naturalWidth / Math.max(1, probe.naturalHeight);
+        const fitted = fitImageBox(naturalAspect, formatData);
       const nextImage = {
         id: imageId(),
-        src: String(reader.result || ""),
+        src: source,
         x: 50,
         y: 30,
-        width: 84,
-        height: 43,
+        width: fitted.width,
+        height: fitted.height,
+        naturalAspect,
         rotation: 0,
         opacity: 1,
         filter: selectedPage?.imageFilter || "none",
@@ -279,6 +300,8 @@ export default function StudioCarousel() {
       updatePage({ images: [...normalizeImages(selectedPage), nextImage] });
       setSelectedImageId(nextImage.id);
       setActivePanel("photo");
+      };
+      probe.src = source;
     };
     reader.readAsDataURL(file);
   }
@@ -566,10 +589,7 @@ export default function StudioCarousel() {
                   {pages.map((page, index) => (
                     <button key={page.id} onClick={() => setSelectedIndex(index)}
                       className={`overflow-hidden rounded-xl border-2 text-left ${index === selectedIndex ? "border-blue-600 shadow-lg" : "border-slate-100"}`}>
-                      <div className="aspect-square p-3 text-white" style={{ background: `linear-gradient(145deg,${page.background},${page.accent})` }}>
-                        <span className="text-[9px] font-black">{index + 1}/{pages.length}</span>
-                        <span className="mt-5 block text-xs font-black leading-tight">{page.title}</span>
-                      </div>
+                      <SlideThumbnail page={page} index={index} total={pages.length} format={formatData} />
                     </button>
                   ))}
                 </div>
@@ -773,6 +793,70 @@ export default function StudioCarousel() {
   );
 }
 
+function SlideThumbnail({ page, index, total, format }) {
+  const images = normalizeImages(page);
+  return (
+    <div
+      className="relative w-full overflow-hidden text-white"
+      style={{
+        aspectRatio: format.ratio,
+        background: `linear-gradient(145deg,${page.background},${page.accent})`,
+        color: page.textColor,
+        fontFamily: page.font,
+      }}
+    >
+      <SlideDecoration type={page.decoration} accent={page.accent} />
+      {[...images]
+        .sort((a, b) => Number(a.zIndex || 0) - Number(b.zIndex || 0))
+        .map((image) => {
+          const style = image.isBackground
+            ? { inset: 0, width: "100%", height: "100%", zIndex: 1 }
+            : {
+                left: `${image.x}%`,
+                top: `${image.y}%`,
+                width: `${image.width}%`,
+                height: `${image.height}%`,
+                zIndex: Math.min(15, 5 + Number(image.zIndex || 1)),
+                transform: `translate(-50%, -50%) rotate(${image.rotation || 0}deg)`,
+              };
+          return (
+            <img
+              key={image.id}
+              src={image.src}
+              alt=""
+              className={`absolute ${image.isBackground ? "object-cover" : "object-contain"}`}
+              style={{
+                ...style,
+                opacity: image.opacity,
+                filter: image.filter || "none",
+                borderRadius: image.isBackground ? 0 : "3px",
+              }}
+            />
+          );
+        })}
+      {images.some((image) => image.isBackground) && (
+        <div className="absolute inset-0 z-[4] bg-gradient-to-t from-black/55 via-black/10 to-black/15" />
+      )}
+      <div className="absolute inset-x-[8%] top-[12%] z-20">
+        <span className="block text-[5px] font-black uppercase tracking-wider opacity-80">
+          {page.eyebrow}
+        </span>
+        <span className="mt-1 block text-[10px] font-black uppercase leading-[.95]">
+          {page.title}
+        </span>
+        <span className="mt-1 block text-[5px] font-semibold leading-tight opacity-90">
+          {page.body}
+        </span>
+      </div>
+      <span className="absolute right-[7%] top-[5%] z-20 text-sm">{page.emoji}</span>
+      <div className="absolute inset-x-[8%] bottom-[6%] z-20 flex justify-between border-t border-white/30 pt-1 text-[5px] font-black">
+        <span>{page.cta}</span>
+        <span>{index + 1}/{total}</span>
+      </div>
+    </div>
+  );
+}
+
 function SlidePreview({
   page,
   index,
@@ -873,10 +957,23 @@ function EditableSlideImage({ image, selected, onSelect, onChange }) {
     const originWidth = Number(image.width || 40);
     const originHeight = Number(image.height || 40);
     function resize(moveEvent) {
-      onChange({
-        width: Math.max(10, Math.min(120, originWidth + ((moveEvent.clientX - startX) / bounds.width) * 100)),
-        height: Math.max(10, Math.min(120, originHeight + ((moveEvent.clientY - startY) / bounds.height) * 100)),
-      });
+      const deltaX = ((moveEvent.clientX - startX) / bounds.width) * 100;
+      const deltaY = ((moveEvent.clientY - startY) / bounds.height) * 100;
+      if (image.naturalAspect) {
+        const canvasAspect = bounds.width / Math.max(1, bounds.height);
+        let width = Math.max(10, Math.min(120, originWidth + deltaX));
+        let height = (width * canvasAspect) / image.naturalAspect;
+        if (height > 120) {
+          height = 120;
+          width = (height * image.naturalAspect) / canvasAspect;
+        }
+        onChange({ width, height });
+      } else {
+        onChange({
+          width: Math.max(10, Math.min(120, originWidth + deltaX)),
+          height: Math.max(10, Math.min(120, originHeight + deltaY)),
+        });
+      }
     }
     function end() {
       window.removeEventListener("pointermove", resize);
@@ -920,6 +1017,19 @@ function EditableSlideImage({ image, selected, onSelect, onChange }) {
         src={image.src}
         alt=""
         draggable={false}
+        onLoad={(event) => {
+          if (image.isBackground || image.naturalAspect) return;
+          const naturalAspect =
+            event.currentTarget.naturalWidth /
+            Math.max(1, event.currentTarget.naturalHeight);
+          const canvas = event.currentTarget.closest("[data-carousel-canvas]");
+          const bounds = canvas?.getBoundingClientRect();
+          const fitted = fitImageBox(naturalAspect, {
+            width: bounds?.width || 1,
+            height: bounds?.height || 1,
+          });
+          onChange({ naturalAspect, ...fitted });
+        }}
         className={`h-full w-full select-none ${image.isBackground ? "object-cover" : "rounded-xl object-contain shadow-2xl"}`}
       />
       {selected && !image.isBackground && (

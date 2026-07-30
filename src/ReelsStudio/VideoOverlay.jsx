@@ -164,15 +164,27 @@ export default function VideoOverlay({
         "pointerup",
         stop
       );
+
+      window.removeEventListener(
+        "pointercancel",
+        stop
+      );
     };
 
     window.addEventListener(
       "pointermove",
-      move
+      move,
+      { passive: false }
     );
 
     window.addEventListener(
       "pointerup",
+      stop,
+      { once: true }
+    );
+
+    window.addEventListener(
+      "pointercancel",
       stop,
       { once: true }
     );
@@ -559,7 +571,8 @@ export default function VideoOverlay({
   return (
     <div
       ref={canvasRef}
-      className="pointer-events-auto absolute inset-0"
+      className="pointer-events-auto absolute inset-0 touch-none overscroll-contain"
+      style={{ touchAction: "none" }}
       onPointerDown={(event) => {
         if (
           event.target ===
@@ -728,6 +741,7 @@ export default function VideoOverlay({
                   : "cursor-grab active:cursor-grabbing"
                   }`}
                 style={{
+                  touchAction: "none",
                   fontSize: `${stickerPreviewSize}px`,
                   lineHeight: 1,
                   opacity:
@@ -833,8 +847,9 @@ export default function VideoOverlay({
                   event.stopPropagation();
                   startTextEditing(layer);
                 }}
-                className="relative flex h-full w-full cursor-grab items-center justify-center whitespace-pre-wrap active:cursor-grabbing"
+                className="relative flex h-full w-full touch-none cursor-grab items-center justify-center whitespace-pre-wrap active:cursor-grabbing"
                 style={{
+                  touchAction: "none",
                   color:
                     layer.color ||
                     "#ffffff",
@@ -1221,7 +1236,7 @@ function Handle({
         onPointerDown
       }
       className={`absolute z-30 h-3 w-3 rounded-sm border border-white bg-blue-500 shadow ${positions[position]}`}
-      style={{ cursor }}
+      style={{ cursor, touchAction: "none" }}
       aria-label="Redimensionar caja"
     />
   );

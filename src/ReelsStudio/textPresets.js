@@ -8,6 +8,14 @@ export const FONT_OPTIONS = [
   "Times New Roman",
   "Courier New",
   "Impact",
+  "Poppins",
+  "Montserrat",
+  "Roboto",
+  "Oswald",
+  "Anton",
+  "Bebas Neue",
+  "Playfair Display",
+  "DM Sans",
 ];
 
 export const TEXT_PRESETS = [
@@ -107,6 +115,65 @@ export const TEXT_PRESETS = [
       backgroundOpacity: 0.96,
       letterSpacing: 1,
       lineHeight: 1,
+    },
+  },
+  {
+    id: "glass",
+    label: "Glass",
+    changes: {
+      fontFamily: "Poppins", fontWeight: 800, color: "#ffffff",
+      strokeEnabled: false, shadowEnabled: true, shadowColor: "#0f172a",
+      shadowBlur: 18, backgroundEnabled: true, backgroundColor: "#0f172a",
+      backgroundOpacity: 0.48, letterSpacing: 0, lineHeight: 1.08,
+    },
+  },
+  {
+    id: "cinema",
+    label: "Cine",
+    changes: {
+      fontFamily: "Bebas Neue", fontWeight: 900, color: "#ffffff",
+      strokeEnabled: false, shadowEnabled: true, backgroundEnabled: false,
+      letterSpacing: 4, lineHeight: 0.95,
+    },
+  },
+  {
+    id: "elegante",
+    label: "Elegante",
+    changes: {
+      fontFamily: "Playfair Display", fontWeight: 700, color: "#fff7d6",
+      strokeEnabled: false, shadowEnabled: true, backgroundEnabled: true,
+      backgroundColor: "#3b0764", backgroundOpacity: 0.78,
+      letterSpacing: 1, lineHeight: 1.12,
+    },
+  },
+  {
+    id: "noticia",
+    label: "Noticia",
+    changes: {
+      fontFamily: "Roboto", fontWeight: 900, color: "#ffffff",
+      strokeEnabled: false, shadowEnabled: false, backgroundEnabled: true,
+      backgroundColor: "#1d4ed8", backgroundOpacity: 1,
+      letterSpacing: 0, lineHeight: 1.05,
+    },
+  },
+  {
+    id: "pop",
+    label: "Pop",
+    changes: {
+      fontFamily: "Arial Black", fontWeight: 900, color: "#ffffff",
+      strokeEnabled: true, strokeColor: "#7c3aed", strokeWidth: 5,
+      shadowEnabled: true, shadowColor: "#facc15", shadowBlur: 14,
+      backgroundEnabled: false, letterSpacing: 1, lineHeight: 1,
+    },
+  },
+  {
+    id: "natural",
+    label: "Natural",
+    changes: {
+      fontFamily: "DM Sans", fontWeight: 700, color: "#14532d",
+      strokeEnabled: false, shadowEnabled: false, backgroundEnabled: true,
+      backgroundColor: "#dcfce7", backgroundOpacity: 0.9,
+      letterSpacing: 0, lineHeight: 1.12,
     },
   },
 ];

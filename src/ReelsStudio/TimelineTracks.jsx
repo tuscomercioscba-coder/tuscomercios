@@ -472,6 +472,7 @@ function ResizeHandle({ side, disabled, onDrag }) {
   function pointerDown(event) {
     if (disabled) return;
 
+    event.preventDefault();
     event.stopPropagation();
     startX.current = event.clientX;
     accumulated.current = 0;
@@ -484,6 +485,7 @@ function ResizeHandle({ side, disabled, onDrag }) {
       return;
     }
 
+    event.preventDefault();
     event.stopPropagation();
 
     const total = event.clientX - startX.current;
@@ -498,9 +500,10 @@ function ResizeHandle({ side, disabled, onDrag }) {
       onPointerDown={pointerDown}
       onPointerMove={pointerMove}
       onClick={(event) => event.stopPropagation()}
-      className={`absolute inset-y-0 z-10 w-3 cursor-ew-resize bg-white/25 ${
+      className={`absolute inset-y-0 z-10 w-3 touch-none cursor-ew-resize bg-white/25 ${
         side === "left" ? "left-0" : "right-0"
       }`}
+      style={{ touchAction: "none" }}
     />
   );
 }

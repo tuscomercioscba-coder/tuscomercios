@@ -172,6 +172,7 @@ export default function ReelsStudioApp({
   const [selectedMediaId, setSelectedMediaId] = useState("");
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [activeTool, setActiveTool] = useState("templates");
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [showSafeArea, setShowSafeArea] = useState(false);
@@ -1926,20 +1927,32 @@ export default function ReelsStudioApp({
             disabled={false}
             onUploadVideo={() => fileInputRef.current?.click()}
             onUploadMedia={() => mediaInputRef.current?.click()}
-            onAddText={() => addLayer(LAYER_TYPES.TEXT)}
-            onAddSubtitle={() => addLayer(LAYER_TYPES.SUBTITLE)}
-            onOpenRecorder={() =>
-              setActiveTool("recorder")
-            }
-            onOpenAudio={() =>
-              setActiveTool("audio")
-            }
-            onOpenVoiceAudio={() =>
-              setActiveTool("voice")
-            }
-            onOpenStickers={() =>
-              setActiveTool("stickers")
-            }
+            onAddText={() => {
+              addLayer(LAYER_TYPES.TEXT);
+              setActiveTool("text");
+              setMobileToolsOpen(true);
+            }}
+            onAddSubtitle={() => {
+              addLayer(LAYER_TYPES.SUBTITLE);
+              setActiveTool("text");
+              setMobileToolsOpen(true);
+            }}
+            onOpenRecorder={() => {
+              setActiveTool("recorder");
+              setMobileToolsOpen(true);
+            }}
+            onOpenAudio={() => {
+              setActiveTool("audio");
+              setMobileToolsOpen(true);
+            }}
+            onOpenVoiceAudio={() => {
+              setActiveTool("voice");
+              setMobileToolsOpen(true);
+            }}
+            onOpenStickers={() => {
+              setActiveTool("stickers");
+              setMobileToolsOpen(true);
+            }}
           />
         </div>
 
@@ -1965,7 +1978,10 @@ export default function ReelsStudioApp({
               <button
                 key={value}
                 type="button"
-                onClick={() => setActiveTool(value)}
+                onClick={() => {
+                  setActiveTool(value);
+                  setMobileToolsOpen(true);
+                }}
                 className={`min-h-11 shrink-0 rounded-xl px-4 text-sm font-black ${
                   activeTool === value
                     ? "bg-blue-600 text-white shadow"
@@ -1979,7 +1995,7 @@ export default function ReelsStudioApp({
         </div>
 
         <div className="mt-3 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <main className="order-2 min-w-0 space-y-4 xl:order-1">
+          <main className="order-1 min-w-0 space-y-3 xl:order-1">
             <section className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-xl sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
@@ -2272,7 +2288,23 @@ export default function ReelsStudioApp({
 
           </main>
 
-          <aside className="order-1 min-w-0 space-y-4 xl:order-2">
+          <aside className={`${mobileToolsOpen ? "fixed" : "hidden"} inset-x-2 bottom-2 z-[90] max-h-[58dvh] min-w-0 space-y-4 overflow-y-auto overscroll-contain rounded-[1.6rem] border border-slate-200 bg-slate-100 p-3 shadow-[0_-20px_60px_rgba(15,23,42,0.28)] xl:static xl:order-2 xl:block xl:max-h-none xl:overflow-visible xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none`}>
+            <div className="sticky top-0 z-20 -mx-1 -mt-1 flex items-center justify-between rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-lg xl:hidden">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Herramienta activa</p>
+                <p className="font-black">
+                  {{
+                    templates: "Plantillas", guide: "Inicio rápido", media: "Contenido",
+                    scene: "Escena", text: "Texto y movimiento", stickers: "Stickers y emojis",
+                    layers: "Capas", transition: "Transición", recorder: "Grabar pantalla",
+                    voice: "Voz", audio: "Música", export: "Exportar",
+                  }[activeTool]}
+                </p>
+              </div>
+              <button type="button" onClick={() => setMobileToolsOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-xl font-black">
+                ×
+              </button>
+            </div>
             {activeTool === "templates" && (
               <ReelTemplateGallery onApply={applyReelTemplate} />
             )}

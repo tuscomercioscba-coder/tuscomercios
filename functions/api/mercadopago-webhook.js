@@ -193,6 +193,18 @@ async function saveBanner(context, preapproval, reference) {
 }
 
 async function saveAdministration(context, preapproval, reference) {
+  const existingResponse = await supabaseAdmin(
+    context,
+    `administration_subscriptions?business_id=eq.${encodeURIComponent(reference.value)}&select=id,first_authorized_at,trial_started_at&limit=1`
+  );
+  const existing = existingResponse.ok
+    ? (await existingResponse.json())?.[0]
+    : null;
+  const authorized = preapproval.status === "authorized";
+  const nextPaymentDate =
+    preapproval.next_payment_date ||
+    preapproval.auto_recurring?.next_payment_date ||
+    null;
   const payload = {
     user_id: reference.userId,
     business_id: reference.value,
@@ -208,15 +220,18 @@ async function saveAdministration(context, preapproval, reference) {
       preapproval.auto_recurring?.transaction_amount || 59999
     ),
     mp_subscription_id: preapproval.id,
+    first_authorized_at:
+      authorized && !existing?.first_authorized_at
+        ? new Date().toISOString()
+        : existing?.first_authorized_at || null,
+    current_period_end:
+      authorized
+        ? nextPaymentDate ||
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+    last_status_changed_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  const existingResponse = await supabaseAdmin(
-    context,
-    `administration_subscriptions?business_id=eq.${encodeURIComponent(reference.value)}&select=id&limit=1`
-  );
-  const existing = existingResponse.ok
-    ? (await existingResponse.json())?.[0]
-    : null;
   await supabaseAdmin(
     context,
     existing?.id

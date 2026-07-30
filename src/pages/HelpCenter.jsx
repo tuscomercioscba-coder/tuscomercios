@@ -23,6 +23,9 @@ import {
   Bug,
   Send,
   Home,
+  BriefcaseBusiness,
+  Boxes,
+  Calculator,
 } from "lucide-react";
 
 const sections = [
@@ -31,11 +34,18 @@ const sections = [
   { id: "planes-y-pagos", label: "Planes y pagos", icon: CreditCard },
   { id: "studio", label: "TusComercios Studio", icon: Palette },
   { id: "mentor-ia", label: "Mentor IA", icon: Bot },
+  { id: "administracion", label: "Administración", icon: BriefcaseBusiness },
   { id: "preguntas-frecuentes", label: "Preguntas frecuentes", icon: CircleHelp },
   { id: "contacto", label: "Contáctanos", icon: MessageCircle },
 ];
 
 const faqs = [
+  {
+    category: "Administración",
+    question: "¿Cómo pruebo y contrato TusComercios Administración?",
+    answer:
+      "Ingresá con la cuenta titular del negocio, abrí Administración y activá la prueba gratuita de 10 días. La prueba queda vinculada a ese negocio. Al finalizar podés contratar el servicio mensual mediante Mercado Pago.",
+  },
   {
     category: "Registro",
     question: "¿Cómo publico mi negocio?",
@@ -355,6 +365,44 @@ export default function HelpCenter() {
             <p className="mt-3 leading-7 text-blue-800">
               Mentor IA está disponible en los planes Estándar y Premium. El plan Estándar tiene hasta 15 respuestas por día y Premium hasta 40.
             </p>
+          </article>
+        </>
+      );
+    }
+
+    if (activeSection === "administracion") {
+      return (
+        <>
+          <SectionTitle
+            eyebrow="Gestión integral"
+            title="TusComercios Administración"
+            description="Controlá ventas, caja, stock, clientes, proveedores, presupuestos y resultados desde un mismo lugar."
+          />
+
+          <div className="mt-8 grid gap-5 lg:grid-cols-3">
+            <Feature icon={Boxes} title="Productos y stock" text="Código de barras, stock mínimo, costos, precios, sucursales y alertas." />
+            <Feature icon={CreditCard} title="Ventas y caja" text="Ventas rápidas, medios de pago, fiado, ingresos, egresos y cierre diario." />
+            <Feature icon={Calculator} title="Decisiones claras" text="Costos, ganancias, gastos fijos y variables, presupuestos, remitos e informes." />
+          </div>
+
+          <article className="mt-8 rounded-[26px] border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-red-50 p-6 sm:p-8">
+            <span className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white">
+              10 días gratis
+            </span>
+            <h2 className="mt-5 text-2xl font-black text-slate-950">
+              Probalo con tu propio negocio
+            </h2>
+            <p className="mt-3 max-w-3xl leading-7 text-slate-700">
+              La prueba se vincula automáticamente con el negocio de la cuenta que inició sesión. No necesitás cargar otra cuenta ni comunicarte con soporte. Después de los 10 días, el acceso se pausa hasta contratar el servicio por $59.999 mensuales.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/administracion")}
+              className="mt-6 inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-700 to-red-600 px-6 py-4 font-black text-white shadow-lg transition hover:scale-[1.02]"
+            >
+              Probar Administración gratis
+              <ArrowRight size={19} />
+            </button>
           </article>
         </>
       );

@@ -57,19 +57,19 @@ export default function MentorSidebar({
   onNewConversation,
 }) {
   return (
-    <aside className="overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-lg">
+    <aside className="min-w-0 max-w-full overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-lg">
       <div className="border-b border-slate-100 bg-gradient-to-br from-blue-950 to-slate-950 p-5 text-white">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-red-300">
           Comercio activo
         </p>
 
-        <h2 className="mt-2 truncate text-xl font-black">
+        <h2 className="mt-2 break-words text-xl font-black [overflow-wrap:anywhere]">
           {business?.negocio ||
             business?.name ||
             "Mi comercio"}
         </h2>
 
-        <p className="mt-1 truncate text-sm font-semibold text-blue-100">
+        <p className="mt-1 break-words text-sm font-semibold text-blue-100 [overflow-wrap:anywhere]">
           {business?.rubro ||
             "Comercio"}{" "}
           ·{" "}
@@ -95,7 +95,7 @@ export default function MentorSidebar({
           Accesos rápidos
         </p>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
           {ACTIONS.map(
             (action) => (
               <button
@@ -107,13 +107,13 @@ export default function MentorSidebar({
                     action.prompt
                   )
                 }
-                className="group min-h-[78px] rounded-2xl border border-slate-100 bg-slate-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="group min-h-[78px] min-w-0 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="text-xl">
                   {action.icon}
                 </span>
 
-                <span className="mt-2 block text-xs font-black text-slate-700 group-hover:text-red-700">
+                <span className="mt-2 block break-words text-xs font-black text-slate-700 group-hover:text-red-700">
                   {action.label}
                 </span>
               </button>

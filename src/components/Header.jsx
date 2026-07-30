@@ -16,6 +16,7 @@ import {
   Info,
   Download,
   Store,
+  BriefcaseBusiness,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
@@ -26,6 +27,7 @@ const informationLinks = [
   { label: "Planes y pagos", section: "planes-y-pagos", icon: CreditCard },
   { label: "TusComercios Studio", section: "studio", icon: Palette },
   { label: "Mentor IA", section: "mentor-ia", icon: Bot },
+  { label: "Administración", section: "administracion", icon: BriefcaseBusiness },
   { label: "Ayuda", section: "preguntas-frecuentes", icon: CircleHelp },
   { label: "Contáctanos", section: "contacto", icon: MessageCircle },
 ];
@@ -185,9 +187,12 @@ export default function Header() {
               type="button"
               onClick={() => setMenuOpen((current) => !current)}
               aria-label="Abrir menú"
-              className="rounded-xl border border-slate-200 p-2.5 text-slate-700 xl:hidden"
+              className="relative overflow-hidden rounded-xl bg-gradient-to-br from-red-600 via-blue-700 to-red-600 p-[2px] text-white shadow-lg shadow-blue-200/70 transition hover:scale-105 xl:hidden"
             >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              <span className="flex items-center gap-2 rounded-[10px] bg-white px-3 py-2 font-black text-slate-800">
+                {menuOpen ? <X size={20} /> : <Menu className="animate-pulse" size={20} />}
+                <span className="text-xs">Ayuda</span>
+              </span>
             </button>
           </div>
         </div>
@@ -195,14 +200,18 @@ export default function Header() {
         {menuOpen && (
           <div className="border-t border-slate-100 bg-white px-4 py-4 xl:hidden">
             <div className="mx-auto grid max-w-7xl gap-2 sm:grid-cols-2">
-              {informationLinks.map(({ label, section, icon: MenuIcon }) => (
+              {informationLinks.map(({ label, section, icon: MenuIcon }, index) => (
                 <button
                   key={section}
                   type="button"
                   onClick={() => goToHelp(section)}
-                  className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-left text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                  className={`flex items-center gap-3 rounded-xl border-l-4 px-4 py-3 text-left text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 ${
+                    index % 2 === 0
+                      ? "border-red-600 bg-red-50 hover:bg-red-100"
+                      : "border-blue-600 bg-blue-50 hover:bg-blue-100"
+                  }`}
                 >
-                  <MenuIcon size={18} className="text-red-600" />
+                  <MenuIcon size={18} className={index % 2 === 0 ? "text-red-600" : "text-blue-600"} />
                   {label}
                 </button>
               ))}

@@ -204,27 +204,15 @@ export default function MentorPage() {
 
       setIsAdmin(admin);
 
-      const query = workspace
-        ? supabase
-            .from(
-              "studio_workspaces"
-            )
-            .select("*")
-            .eq("id", id)
-            .eq(
-              "owner_id",
-              user.id
-            )
-            .maybeSingle()
-        : supabase
-            .from("businesses")
-            .select("*")
-            .eq("id", id)
-            .eq(
-              "user_id",
-              user.id
-            )
-            .maybeSingle();
+      let query = workspace
+        ? supabase.from("studio_workspaces").select("*").eq("id", id)
+        : supabase.from("businesses").select("*").eq("id", id);
+
+      if (!admin) {
+        query = query.eq(workspace ? "owner_id" : "user_id", user.id);
+      }
+
+      query = query.maybeSingle();
 
       const {
         data,
@@ -502,7 +490,7 @@ export default function MentorPage() {
   return (
     <Layout>
       <div className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#eff6ff_0,#f8fafc_42%,#eef2f7_100%)] p-2 sm:p-5">
-        <div className="mx-auto max-w-[1500px] space-y-4">
+        <div className="mx-auto w-full max-w-[1500px] space-y-4 overflow-hidden">
           <header className="min-w-0 overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800 text-white shadow-2xl sm:rounded-[2rem]">
             <div className="flex flex-col justify-between gap-4 p-4 sm:p-8 md:flex-row md:items-center">
               <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -538,7 +526,7 @@ export default function MentorPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 border-t border-white/10 bg-black/10">
+            <div className="grid grid-cols-2 border-t border-white/10 bg-black/10 md:grid-cols-3">
               <HeaderStat
                 label="Negocio"
                 value={
@@ -555,16 +543,18 @@ export default function MentorPage() {
                 }
               />
 
+              <div className="hidden md:block">
               <HeaderStat
                 label="Especialidad"
                 value="Marketing y ventas"
                 last
               />
+              </div>
             </div>
           </header>
 
-          <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_330px]">
-            <div className="order-2 xl:order-1">
+          <div className="grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)_330px]">
+            <div className="order-2 min-w-0 max-w-full overflow-hidden xl:order-1">
               <MentorSidebar
                 business={
                   business
@@ -585,7 +575,7 @@ export default function MentorPage() {
               />
             </div>
 
-            <section className="order-1 flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-white bg-white/90 shadow-xl backdrop-blur sm:min-h-[680px] sm:rounded-[2rem] xl:order-2 xl:h-[720px] xl:min-h-0">
+            <section className="order-1 flex h-[72dvh] min-h-[540px] max-h-[780px] min-w-0 max-w-full flex-col overflow-hidden rounded-[1.5rem] border border-white bg-white/90 shadow-xl backdrop-blur sm:h-[76dvh] sm:min-h-[620px] sm:rounded-[2rem] xl:order-2 xl:h-[760px] xl:min-h-0">
               <div className="border-b border-slate-200 bg-white p-4 sm:p-5">
                 <MentorQuickActions
                   disabled={
@@ -600,7 +590,7 @@ export default function MentorPage() {
 
               <div
                 ref={chatScrollRef}
-                className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] p-4 sm:p-6"
+                className="relative min-h-0 min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] p-3 sm:p-6"
               >
                 <div className="mx-auto w-full max-w-4xl space-y-5">
                   {messages.map(
@@ -653,7 +643,7 @@ export default function MentorPage() {
               />
             </section>
 
-            <aside className="order-3 space-y-4">
+            <aside className="order-3 min-w-0 max-w-full space-y-4 overflow-hidden">
               <MentorCounter
                 used={used}
                 limit={limit}

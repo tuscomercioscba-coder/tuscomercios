@@ -712,6 +712,7 @@ function EditableMediaPane({
       "grabbing";
 
     const move = (moveEvent) => {
+      moveEvent.preventDefault();
       const deltaX =
         ((moveEvent.clientX -
           startX) /
@@ -760,15 +761,27 @@ function EditableMediaPane({
         "pointerup",
         stop
       );
+
+      window.removeEventListener(
+        "pointercancel",
+        stop
+      );
     };
 
     window.addEventListener(
       "pointermove",
-      move
+      move,
+      { passive: false }
     );
 
     window.addEventListener(
       "pointerup",
+      stop,
+      { once: true }
+    );
+
+    window.addEventListener(
+      "pointercancel",
       stop,
       { once: true }
     );
@@ -795,6 +808,7 @@ function EditableMediaPane({
       "nwse-resize";
 
     const move = (moveEvent) => {
+      moveEvent.preventDefault();
       onChange({
         mediaScale: Math.max(
           20,
@@ -824,15 +838,27 @@ function EditableMediaPane({
         "pointerup",
         stop
       );
+
+      window.removeEventListener(
+        "pointercancel",
+        stop
+      );
     };
 
     window.addEventListener(
       "pointermove",
-      move
+      move,
+      { passive: false }
     );
 
     window.addEventListener(
       "pointerup",
+      stop,
+      { once: true }
+    );
+
+    window.addEventListener(
+      "pointercancel",
       stop,
       { once: true }
     );
@@ -841,7 +867,8 @@ function EditableMediaPane({
   return (
     <div
       ref={containerRef}
-      className="relative h-full min-h-0 w-full overflow-hidden bg-black"
+      className="relative h-full min-h-0 w-full touch-none overscroll-contain overflow-hidden bg-black"
+      style={{ touchAction: editable ? "none" : "auto" }}
     >
       <div
         onPointerDown={
@@ -852,7 +879,10 @@ function EditableMediaPane({
             ? "cursor-grab active:cursor-grabbing"
             : ""
         }
-        style={mediaStyle}
+        style={{
+          ...mediaStyle,
+          touchAction: editable ? "none" : "auto",
+        }}
       >
         {clip.fit === "smart" && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden bg-slate-950">

@@ -149,21 +149,25 @@ export async function onRequestPost(context) {
       );
     } else if (type === "administration") {
       const businessId = externalReference.split(":")[1];
-      const payload = {
-        user_id: auth.user.id,
-        business_id: businessId,
-        status: data.status || "pending",
-        monthly_price: amount,
-        mp_subscription_id: data.id,
-        updated_at: new Date().toISOString(),
-      };
       const existingResponse = await supabaseAdmin(
         context,
-        `administration_subscriptions?business_id=eq.${encodeURIComponent(businessId)}&select=id&limit=1`
+        `administration_subscriptions?business_id=eq.${encodeURIComponent(businessId)}&select=id,status,trial_started_at,trial_ends_at,first_authorized_at&limit=1`
       );
       const existing = existingResponse.ok
         ? (await existingResponse.json())?.[0]
         : null;
+      const trialStillActive =
+        existing?.status === "trial" &&
+        existing?.trial_ends_at &&
+        new Date(existing.trial_ends_at).getTime() > Date.now();
+      const payload = {
+        user_id: auth.user.id,
+        business_id: businessId,
+        status: trialStillActive ? "trial" : data.status || "pending",
+        monthly_price: amount,
+        mp_subscription_id: data.id,
+        updated_at: new Date().toISOString(),
+      };
       await supabaseAdmin(
         context,
         existing?.id

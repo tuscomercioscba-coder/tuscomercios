@@ -45,7 +45,7 @@ export default function MarketingProfile({
   }
 
   return (
-    <section className="rounded-[1.7rem] border border-slate-200 bg-white shadow-lg">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-lg">
       <button
         type="button"
         onClick={() =>
@@ -64,7 +64,7 @@ export default function MarketingProfile({
             Lo que Mentor sabe
           </h2>
 
-          <p className="mt-1 text-xs font-semibold text-slate-500">
+          <p className="mt-1 break-words text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">
             {business?.negocio ||
               business?.name ||
               "Comercio"}{" "}

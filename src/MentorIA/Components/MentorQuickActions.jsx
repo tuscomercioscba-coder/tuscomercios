@@ -30,7 +30,7 @@ export default function MentorQuickActions({
   onSelect,
 }) {
   return (
-    <div>
+    <div className="min-w-0 max-w-full overflow-hidden">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
@@ -44,7 +44,7 @@ export default function MentorQuickActions({
 
       </div>
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
         {ACTIONS.map(
           (action) => (
             <button
@@ -56,13 +56,13 @@ export default function MentorQuickActions({
                   action.prompt
                 )
               }
-              className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md disabled:opacity-40"
+              className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md disabled:opacity-40"
             >
               <span className="text-xl">
                 {action.icon}
               </span>
 
-              <span className="mt-2 block text-xs font-black text-slate-700">
+              <span className="mt-2 block break-words text-xs font-black text-slate-700">
                 {action.label}
               </span>
             </button>

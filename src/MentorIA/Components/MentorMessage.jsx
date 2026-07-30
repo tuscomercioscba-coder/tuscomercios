@@ -2,7 +2,7 @@ export default function MentorMessage({ message }) {
   const mentor = message.role === "assistant";
 
   return (
-    <article className={`flex gap-3 ${mentor ? "justify-start" : "justify-end"}`}>
+    <article className={`flex min-w-0 max-w-full gap-3 ${mentor ? "justify-start" : "justify-end"}`}>
       {mentor && (
         <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-700 text-sm font-black text-white shadow">
           M
@@ -10,7 +10,7 @@ export default function MentorMessage({ message }) {
       )}
 
       <div
-        className={`max-w-[88%] overflow-hidden rounded-3xl text-sm font-semibold leading-6 shadow-sm sm:max-w-[76%] ${
+        className={`min-w-0 max-w-[88%] overflow-hidden rounded-3xl text-sm font-semibold leading-6 shadow-sm sm:max-w-[76%] ${
           mentor
             ? "rounded-tl-md border border-slate-200 bg-white text-slate-700"
             : "rounded-tr-md bg-gradient-to-br from-blue-700 to-blue-950 text-white"
@@ -29,7 +29,7 @@ export default function MentorMessage({ message }) {
             </div>
           )}
 
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
 
           <p
             className={`mt-2 text-[10px] font-bold ${

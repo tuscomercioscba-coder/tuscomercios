@@ -14,8 +14,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { supabase } from "../supabase";
+import { downloadExcel } from "./excelUtils";
 
 const MONEY = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -298,7 +298,7 @@ export default function AdvancedOperationsPanel({
     return Object.values(result).sort((a, b) => b.revenue - a.revenue);
   }, [salesItems]);
 
-  function exportStockHistory() {
+  async function exportStockHistory() {
     const rows = movements.map((movement) => ({
       Fecha: new Date(movement.created_at).toLocaleString("es-AR"),
       Producto:
@@ -309,13 +309,9 @@ export default function AdvancedOperationsPanel({
       Costo: number(movement.unit_cost),
       Notas: movement.notes || "",
     }));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(rows),
-      "Movimientos de stock",
-    );
-    XLSX.writeFile(workbook, "historial_stock.xlsx");
+    await downloadExcel("historial_stock.xlsx", [
+      { name: "Movimientos de stock", rows },
+    ]);
   }
 
   function downloadBackup() {

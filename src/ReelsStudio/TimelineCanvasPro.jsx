@@ -737,7 +737,8 @@ function MoveHandle({
       onPointerDown={
         handlePointerDown
       }
-      className="relative h-full w-full cursor-grab px-5 text-left text-white active:cursor-grabbing"
+      className="relative h-full w-full touch-none cursor-grab px-5 text-left text-white active:cursor-grabbing"
+      style={{ touchAction: "none" }}
     >
       {children}
     </button>

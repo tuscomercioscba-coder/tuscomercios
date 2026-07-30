@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [allBusinesses, setAllBusinesses] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [administrationSubscriptions, setAdministrationSubscriptions] = useState([]);
   const [pageEvents, setPageEvents] = useState([]);
   const [storyReports, setStoryReports] = useState([]);
   const [myUserId, setMyUserId] = useState(null);
@@ -230,6 +231,12 @@ export default function Dashboard() {
     setProfiles(profilesData || []);
     setSubscriptions(subscriptionsData || []);
 
+    const { data: administrationData } = await supabase
+      .from("administration_subscriptions")
+      .select("*, businesses(id, negocio, user_id)")
+      .order("created_at", { ascending: false });
+    setAdministrationSubscriptions(administrationData || []);
+
     const { data: reportsData } = await supabase
       .from("story_reports")
       .select("*,business_stories(id,business_id,media_url,caption)")
@@ -238,6 +245,98 @@ export default function Dashboard() {
   }
 
   setLoading(false);
+}
+
+function AdministrationTrialMetrics({ subscriptions = [] }) {
+  const now = Date.now();
+  const trials = subscriptions.filter((item) => item.trial_started_at);
+  const converted = trials.filter((item) => item.first_authorized_at);
+  const activeTrials = trials.filter(
+    (item) =>
+      item.status === "trial" &&
+      item.trial_ends_at &&
+      new Date(item.trial_ends_at).getTime() > now,
+  );
+  const activePaid = subscriptions.filter((item) => item.status === "authorized");
+  const conversion = trials.length
+    ? Math.round((converted.length / trials.length) * 100)
+    : 0;
+  const formatDate = (value) =>
+    value ? new Date(value).toLocaleDateString("es-AR") : "-";
+
+  return (
+    <section className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["Pruebas iniciadas", trials.length, "bg-blue-50 text-blue-800"],
+          ["En prueba hoy", activeTrials.length, "bg-violet-50 text-violet-800"],
+          ["Convirtieron", converted.length, "bg-emerald-50 text-emerald-800"],
+          ["Pagos activos", activePaid.length, "bg-green-50 text-green-800"],
+          ["Conversión", `${conversion}%`, "bg-red-50 text-red-800"],
+        ].map(([label, value, color]) => (
+          <article key={label} className={`rounded-3xl p-5 ${color}`}>
+            <p className="text-xs font-black uppercase tracking-wider">{label}</p>
+            <p className="mt-2 text-3xl font-black">{value}</p>
+          </article>
+        ))}
+      </div>
+
+      <AdminTable title="Comercios que probaron Administración">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b text-left">
+              <th className="p-3">Comercio</th>
+              <th className="p-3">Inicio</th>
+              <th className="p-3">Fin de prueba</th>
+              <th className="p-3">Estado</th>
+              <th className="p-3">Resultado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {subscriptions.map((item) => {
+              const convertedItem = Boolean(item.first_authorized_at);
+              const activeTrial =
+                item.status === "trial" &&
+                item.trial_ends_at &&
+                new Date(item.trial_ends_at).getTime() > now;
+              return (
+                <tr key={item.id} className="border-b">
+                  <td className="p-3 font-black">
+                    {item.businesses?.negocio || "Negocio eliminado"}
+                  </td>
+                  <td className="p-3">{formatDate(item.trial_started_at)}</td>
+                  <td className="p-3">{formatDate(item.trial_ends_at)}</td>
+                  <td className="p-3">
+                    {item.status === "authorized"
+                      ? "Suscripción activa"
+                      : activeTrial
+                        ? "Prueba activa"
+                        : item.status === "trial"
+                          ? "Prueba vencida"
+                          : item.status}
+                  </td>
+                  <td className="p-3 font-bold">
+                    {convertedItem ? (
+                      <span className="text-emerald-700">Pagó y continuó</span>
+                    ) : (
+                      <span className="text-slate-500">Todavía no convirtió</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {!subscriptions.length && (
+              <tr>
+                <td colSpan="5" className="p-8 text-center text-slate-500">
+                  Todavía no se iniciaron pruebas de Administración.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </AdminTable>
+    </section>
+  );
 }
 
 
@@ -716,6 +815,7 @@ export default function Dashboard() {
                 ["negocios", "Todos los negocios"],
                 ["usuarios", "Usuarios"],
                 ["suscripciones", "Suscripciones"],
+                ["administracion", "Administración"],
                 [
                   "denuncias",
                   `Denuncias${storyReports.filter((item) => item.status === "pending").length ? ` (${storyReports.filter((item) => item.status === "pending").length})` : ""}`,
@@ -1048,6 +1148,10 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </AdminTable>
+          )}
+
+          {isAdmin && activeTab === "administracion" && (
+            <AdministrationTrialMetrics subscriptions={administrationSubscriptions} />
           )}
 
 

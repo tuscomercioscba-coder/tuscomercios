@@ -30,7 +30,10 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../supabase";
-import * as XLSX from "xlsx";
+import {
+  downloadExcel,
+  readExcelRows,
+} from "../Administration/excelUtils";
 import CustomersPanel from "../Administration/CustomersPanel";
 import DocumentsTeamPanel from "../Administration/DocumentsTeamPanel";
 import AdvancedOperationsPanel from "../Administration/AdvancedOperationsPanel";
@@ -202,7 +205,22 @@ export default function Administration() {
   const administrationDisplayName = isAdmin
     ? "TusComercios"
     : selectedBusiness?.negocio || "TusComercios";
-  const hasAccess = isAdmin || subscription?.status === "authorized";
+  const trialEndsAt = subscription?.trial_ends_at
+    ? new Date(subscription.trial_ends_at)
+    : null;
+  const trialActive =
+    subscription?.status === "trial" &&
+    trialEndsAt &&
+    trialEndsAt.getTime() > Date.now();
+  const trialUsed = Boolean(subscription?.trial_started_at);
+  const trialDaysRemaining = trialActive
+    ? Math.max(1, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
+    : 0;
+  const authorizedActive =
+    subscription?.status === "authorized" &&
+    (!subscription?.current_period_end ||
+      new Date(subscription.current_period_end).getTime() > Date.now());
+  const hasAccess = isAdmin || authorizedActive || trialActive;
 
   useEffect(() => {
     bootstrap();
@@ -250,16 +268,6 @@ export default function Administration() {
         .select("id, negocio, image, ciudad, plan, user_id")
         .order("negocio");
       available = allBusinesses || available;
-    } else if (available.length) {
-      const { data: activeSubscriptions } = await supabase
-        .from("administration_subscriptions")
-        .select("business_id")
-        .eq("user_id", currentUser.id)
-        .eq("status", "authorized");
-      const allowedIds = new Set(
-        (activeSubscriptions || []).map((item) => item.business_id),
-      );
-      available = available.filter((business) => allowedIds.has(business.id));
     }
 
     setBusinesses(available);
@@ -653,12 +661,16 @@ export default function Administration() {
 
     if (extension === "csv") {
       rows = parseCsv(await file.text());
-    } else if (extension === "xlsx" || extension === "xls") {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      rows = XLSX.utils
-        .sheet_to_json(firstSheet, { defval: "" })
-        .map(normalizeImportedRow);
+    } else if (extension === "xlsx") {
+      try {
+        rows = (await readExcelRows(file)).map(normalizeImportedRow);
+      } catch {
+        setImportRows([]);
+        setImportErrors([
+          "No pudimos leer ese Excel. Guardalo como archivo .xlsx e intentá nuevamente.",
+        ]);
+        return;
+      }
     } else {
       setImportRows([]);
       setImportErrors([
@@ -994,6 +1006,27 @@ export default function Administration() {
     }
   }
 
+  async function startAdministrationTrial() {
+    if (!businessId) {
+      setMessage("Primero seleccioná el negocio que va a usar Administración.");
+      return;
+    }
+    try {
+      setCheckoutLoading(true);
+      const { data, error } = await supabase.rpc("start_administration_trial", {
+        p_business_id: businessId,
+      });
+      if (error) throw error;
+      setSubscription(data || null);
+      setMessage("Prueba gratuita activada. Tenés 10 días para usar todas las funciones.");
+      await loadBusinessData(businessId);
+    } catch (error) {
+      setMessage(error?.message || "No se pudo iniciar la prueba. Verificá la actualización de Supabase.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
+
   async function createDeliveryNote(saleId) {
     const { error } = await supabase.rpc("create_delivery_note_from_sale", {
       p_sale_id: saleId,
@@ -1113,13 +1146,12 @@ export default function Administration() {
     });
   }
 
-  function exportSalesExcel() {
+  async function exportSalesExcel() {
     const rows = salesExportRows();
     if (!rows.length) {
       setMessage("No hay ventas en el período elegido para exportar.");
       return;
     }
-    const workbook = XLSX.utils.book_new();
     const summary = [
       ["REPORTE DE VENTAS", administrationDisplayName],
       ["Período", `${periodBounds.from} al ${periodBounds.to}`],
@@ -1128,19 +1160,12 @@ export default function Administration() {
       ["Promedio por venta", filteredSalesAverage],
       ["Ganancia estimada", filteredSalesProfit],
     ];
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.aoa_to_sheet(summary),
-      "Resumen",
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(rows),
-      "Ventas",
-    );
-    XLSX.writeFile(
-      workbook,
+    await downloadExcel(
       `ventas_${periodBounds.from}_${periodBounds.to}.xlsx`,
+      [
+        { name: "Resumen", rows: summary },
+        { name: "Ventas", rows },
+      ],
     );
   }
 
@@ -1363,21 +1388,40 @@ export default function Administration() {
           {!hasAccess && (
             <section className="mt-5 rounded-[2rem] border-2 border-amber-300 bg-amber-50 p-6">
               <p className="font-black text-amber-950">
-                Administración todavía no está activa para este negocio.
+                {trialUsed
+                  ? "La prueba gratuita de Administración finalizó."
+                  : "Probá Administración gratis durante 10 días."}
               </p>
               <p className="mt-2 text-amber-900">
-                El servicio adicional cuesta $59.999 mensuales y se activa
-                automáticamente al confirmarse el pago.
+                {trialUsed
+                  ? "Para recuperar el acceso, contratá el servicio por $59.999 mensuales."
+                  : "La prueba queda vinculada automáticamente a este negocio. Al finalizar, el acceso se pausa; tus datos quedan guardados."}
               </p>
-              <button
-                type="button"
-                disabled={checkoutLoading}
-                onClick={subscribeAdministration}
-                className="mt-4 rounded-2xl bg-blue-600 px-6 py-4 font-black text-white disabled:opacity-50"
-              >
-                {checkoutLoading
-                  ? "Conectando con Mercado Pago..."
-                  : "Contratar Administración"}
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                {!trialUsed && (
+                  <button type="button" disabled={checkoutLoading} onClick={startAdministrationTrial} className="rounded-2xl bg-gradient-to-r from-blue-700 to-red-600 px-6 py-4 font-black text-white disabled:opacity-50">
+                    {checkoutLoading ? "Activando..." : "Iniciar prueba gratis"}
+                  </button>
+                )}
+                <button type="button" disabled={checkoutLoading} onClick={subscribeAdministration} className="rounded-2xl bg-slate-950 px-6 py-4 font-black text-white disabled:opacity-50">
+                  {checkoutLoading ? "Conectando con Mercado Pago..." : "Contratar por $59.999/mes"}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {trialActive && !isAdmin && (
+            <section className="mt-5 flex flex-col justify-between gap-4 rounded-[1.6rem] border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-black text-emerald-950">
+                  Prueba gratuita activa · {trialDaysRemaining} {trialDaysRemaining === 1 ? "día" : "días"} restantes
+                </p>
+                <p className="mt-1 text-sm font-semibold text-emerald-800">
+                  Todas las funciones están habilitadas. Tus datos seguirán guardados si la prueba vence.
+                </p>
+              </div>
+              <button type="button" onClick={subscribeAdministration} disabled={checkoutLoading} className="shrink-0 rounded-xl bg-emerald-700 px-5 py-3 font-black text-white disabled:opacity-50">
+                Contratar ahora
               </button>
             </section>
           )}
@@ -2737,7 +2781,7 @@ export default function Administration() {
           <input
             ref={importInput}
             type="file"
-            accept=".csv,.xlsx,.xls,.pdf"
+            accept=".csv,.xlsx,.pdf"
             onChange={readImportFile}
             className="hidden"
           />
