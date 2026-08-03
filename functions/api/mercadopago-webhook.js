@@ -88,13 +88,81 @@ async function readPreapproval(context, id) {
 }
 
 function parseReference(reference) {
-  const [type, value, userId] = String(reference || "").split(":");
+  const [type, value, userId, codeId] = String(reference || "").split(":");
   if (
     !["plan", "banner", "administration"].includes(type) ||
     !value ||
     !userId
   ) return null;
-  return { type, value, userId };
+  return { type, value, userId, codeId: codeId || null };
+}
+
+function nextPayoutDate(weekday) {
+  const date = new Date();
+  const days = (Number(weekday) - date.getUTCDay() + 7) % 7;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+async function processCommercialCode(context, preapproval, reference) {
+  if (!reference.codeId) return;
+  const usesResponse = await supabaseAdmin(
+    context,
+    `commercial_code_uses?mp_subscription_id=eq.${encodeURIComponent(preapproval.id)}&select=*&limit=1`
+  );
+  const use = usesResponse.ok ? (await usesResponse.json())?.[0] : null;
+  if (!use) return;
+
+  const authorized = preapproval.status === "authorized";
+  const status = authorized
+    ? "authorized"
+    : preapproval.status === "cancelled"
+      ? "cancelled"
+      : preapproval.status === "paused" ? "paused" : "pending";
+  await supabaseAdmin(context, `commercial_code_uses?id=eq.${encodeURIComponent(use.id)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      status,
+      charged_amount: Number(preapproval.auto_recurring?.transaction_amount || use.charged_amount),
+      ...(authorized && !use.authorized_at ? { authorized_at: new Date().toISOString() } : {}),
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!authorized) return;
+
+  const codeResponse = await supabaseAdmin(
+    context,
+    `commercial_codes?id=eq.${encodeURIComponent(reference.codeId)}&select=*&limit=1`
+  );
+  const code = codeResponse.ok ? (await codeResponse.json())?.[0] : null;
+  if (!code || code.code_type !== "seller") return;
+
+  const existingResponse = await supabaseAdmin(
+    context,
+    `seller_commissions?code_use_id=eq.${encodeURIComponent(use.id)}&select=id&limit=1`
+  );
+  if (existingResponse.ok && (await existingResponse.json())?.[0]) return;
+
+  const base = Number(preapproval.auto_recurring?.transaction_amount || use.charged_amount || 0);
+  const commission = code.commission_type === "percent"
+    ? base * Number(code.commission_value || 0) / 100
+    : Number(code.commission_value || 0);
+  await supabaseAdmin(context, "seller_commissions", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      code_use_id: use.id,
+      code_id: code.id,
+      seller_name: code.seller_name || code.code,
+      seller_email: code.seller_email || null,
+      base_amount: base,
+      commission_amount: Math.round(commission * 100) / 100,
+      sale_date: new Date().toISOString(),
+      scheduled_payment_date: nextPayoutDate(code.payout_weekday),
+      status: "pending",
+    }),
+  });
 }
 
 async function saveSubscription(context, preapproval, reference) {
@@ -298,6 +366,8 @@ export async function onRequestPost(context) {
     } else {
       await saveSubscription(context, preapproval, reference);
     }
+
+    await processCommercialCode(context, preapproval, reference);
 
     return json({ ok: true });
   } catch (error) {

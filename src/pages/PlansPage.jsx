@@ -196,6 +196,7 @@ export default function PlansPage() {
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [openFaq, setOpenFaq] = useState(0);
+  const [commercialCode, setCommercialCode] = useState("");
 
   const selectPlan = async (plan) => {
     const {
@@ -235,13 +236,13 @@ export default function PlansPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, code: commercialCode.trim() }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        alert("Error creando suscripción");
+        alert(data?.error || "Error creando suscripción");
         return;
       }
 
@@ -318,6 +319,27 @@ export default function PlansPage() {
             Publicá tu vidriera, creá contenido profesional y accedé a herramientas pensadas para conseguir más clientes.
           </p>
         </header>
+
+        <section className="mx-auto mt-9 max-w-xl rounded-3xl border border-blue-100 bg-white p-5 text-left shadow-lg shadow-blue-950/5">
+          <label className="text-sm font-black text-slate-900" htmlFor="commercial-code">
+            ¿Tenés un cupón o código de vendedor?
+          </label>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="commercial-code"
+              value={commercialCode}
+              onChange={(event) => setCommercialCode(event.target.value.toUpperCase())}
+              placeholder="Ingresá un solo código"
+              className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold uppercase outline-none focus:border-blue-500"
+            />
+            {commercialCode && (
+              <button type="button" onClick={() => setCommercialCode("")} className="rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-600">
+                Quitar
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs font-semibold text-slate-500">Podés usar uno: cupón de descuento o código de vendedor. No se acumulan.</p>
+        </section>
 
         <section className="mt-14 grid gap-7 md:grid-cols-3">
           <PlanCard

@@ -38,6 +38,43 @@ async function validateBusiness(context, userId, businessId) {
   return (await response.json())?.[0] || null;
 }
 
+async function validateCommercialCode(context, rawCode, purchaseType) {
+  const code = String(rawCode || "").trim().toUpperCase();
+  if (!code) return null;
+
+  const response = await supabaseAdmin(
+    context,
+    `commercial_codes?code=eq.${encodeURIComponent(code)}&active=eq.true&select=*&limit=1`
+  );
+  if (!response.ok) throw new Error("No se pudo validar el código");
+  const record = (await response.json())?.[0];
+  if (!record) throw new Error("El código no existe o está desactivado");
+  if (record.expires_at && new Date(record.expires_at).getTime() < Date.now()) {
+    throw new Error("El código está vencido");
+  }
+  if (!Array.isArray(record.applies_to) || !record.applies_to.includes(purchaseType)) {
+    throw new Error("El código no corresponde a este servicio");
+  }
+  if (record.max_uses) {
+    const usesResponse = await supabaseAdmin(
+      context,
+      `commercial_code_uses?code_id=eq.${encodeURIComponent(record.id)}&status=eq.authorized&select=id`
+    );
+    const uses = usesResponse.ok ? await usesResponse.json() : [];
+    if (uses.length >= Number(record.max_uses)) throw new Error("El código alcanzó su límite de usos");
+  }
+  return record;
+}
+
+function discountedAmount(amount, code) {
+  if (!code || code.code_type !== "discount") return amount;
+  const value = Number(code.discount_value || 0);
+  const result = code.discount_type === "percent"
+    ? amount * (1 - Math.min(value, 100) / 100)
+    : amount - value;
+  return Math.max(100, Math.round(result));
+}
+
 export async function onRequestPost(context) {
   try {
     const auth = await requireUser(context);
@@ -54,6 +91,8 @@ export async function onRequestPost(context) {
     let amount;
     let externalReference;
     let backUrl;
+    let purchaseType;
+    let businessIdForCode = null;
 
     if (type === "banner") {
       const bannerId = String(body.banner_id || "").trim();
@@ -68,6 +107,7 @@ export async function onRequestPost(context) {
       }
 
       amount = BANNER_PRICE;
+      purchaseType = "banner";
       reason = "Tus Comercios - Banner regional por 30 días";
       externalReference = `banner:${banner.id}:${auth.user.id}`;
       backUrl = `https://tuscomercios.com.ar/success?checkout=banner&banner_id=${encodeURIComponent(banner.id)}`;
@@ -82,6 +122,8 @@ export async function onRequestPost(context) {
         return errorJson("El negocio no existe o no pertenece al usuario", 403);
       }
       amount = ADMINISTRATION_PRICE;
+      purchaseType = "gestion";
+      businessIdForCode = business.id;
       reason = "TusComercios Gestión";
       externalReference = `administration:${business.id}:${auth.user.id}`;
       backUrl =
@@ -95,8 +137,19 @@ export async function onRequestPost(context) {
       }
 
       reason = `Tus Comercios - Plan ${plan === "standard" ? "Estándar" : "Premium"}`;
+      purchaseType = plan;
       externalReference = `plan:${plan}:${auth.user.id}`;
       backUrl = `https://tuscomercios.com.ar/success?checkout=plan&plan=${encodeURIComponent(plan)}`;
+    }
+
+    const originalAmount = amount;
+    const commercialCode = purchaseType === "banner"
+      ? null
+      : await validateCommercialCode(context, body.code, purchaseType);
+    amount = discountedAmount(amount, commercialCode);
+    if (commercialCode) {
+      externalReference += `:${commercialCode.id}`;
+      reason += ` - Código ${commercialCode.code}`;
     }
 
     const response = await fetch("https://api.mercadopago.com/preapproval", {
@@ -130,6 +183,24 @@ export async function onRequestPost(context) {
 
     if (!data?.init_point) {
       return errorJson("Mercado Pago no devolvió el enlace de pago", 502);
+    }
+
+    if (commercialCode) {
+      const useResponse = await supabaseAdmin(context, "commercial_code_uses", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          code_id: commercialCode.id,
+          user_id: auth.user.id,
+          business_id: businessIdForCode,
+          purchase_type: purchaseType,
+          mp_subscription_id: data.id,
+          original_amount: originalAmount,
+          charged_amount: amount,
+          status: "pending",
+        }),
+      });
+      if (!useResponse.ok) console.error("No se pudo registrar el uso del código");
     }
 
     if (type === "banner") {

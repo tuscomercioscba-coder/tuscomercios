@@ -148,6 +148,7 @@ export default function Administration() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [commercialCode, setCommercialCode] = useState("");
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [businesses, setBusinesses] = useState([]);
@@ -991,6 +992,7 @@ export default function Administration() {
         body: JSON.stringify({
           type: "administration",
           business_id: businessId,
+          code: commercialCode.trim(),
         }),
       });
       const data = await response.json();
@@ -1397,6 +1399,17 @@ export default function Administration() {
                   ? "Para recuperar el acceso, contratá el servicio por $24.999 mensuales."
                   : "La prueba queda vinculada automáticamente a este negocio. Al finalizar, el acceso se pausa; tus datos quedan guardados."}
               </p>
+              <div className="mt-4 max-w-xl">
+                <label htmlFor="gestion-commercial-code" className="text-sm font-black text-amber-950">Cupón o código de vendedor</label>
+                <input
+                  id="gestion-commercial-code"
+                  value={commercialCode}
+                  onChange={(event) => setCommercialCode(event.target.value.toUpperCase())}
+                  placeholder="Ingresá un solo código (opcional)"
+                  className="mt-2 w-full rounded-2xl border border-amber-300 bg-white px-4 py-3 font-bold uppercase outline-none focus:border-blue-600"
+                />
+                <p className="mt-1 text-xs font-semibold text-amber-800">Los códigos no se acumulan.</p>
+              </div>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 {!trialUsed && (
                   <button type="button" disabled={checkoutLoading} onClick={startAdministrationTrial} className="rounded-2xl bg-gradient-to-r from-blue-700 to-red-600 px-6 py-4 font-black text-white disabled:opacity-50">

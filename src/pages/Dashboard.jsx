@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import CommercialCodesPanel from "../components/admin/CommercialCodesPanel";
 import {
   Store,
   Users,
@@ -861,6 +862,7 @@ function AdministrationTrialMetrics({ subscriptions = [] }) {
                 ["usuarios", "Usuarios"],
                 ["suscripciones", "Suscripciones"],
                 ["administracion", "Gestión"],
+                ["codigos", "Códigos y vendedores"],
                 [
                   "denuncias",
                   `Denuncias${storyReports.filter((item) => item.status === "pending").length ? ` (${storyReports.filter((item) => item.status === "pending").length})` : ""}`,
@@ -1198,6 +1200,8 @@ function AdministrationTrialMetrics({ subscriptions = [] }) {
           {isAdmin && activeTab === "administracion" && (
             <AdministrationTrialMetrics subscriptions={administrationSubscriptions} />
           )}
+
+          {isAdmin && activeTab === "codigos" && <CommercialCodesPanel />}
 
 
           {isAdmin && activeTab === "metricas" && (
