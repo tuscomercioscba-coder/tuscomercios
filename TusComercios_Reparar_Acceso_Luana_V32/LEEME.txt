@@ -1,0 +1,6 @@
+1. Copia esta carpeta completa dentro de C:\Desarrollo\tuscomercios
+2. Ejecuta APLICAR_REPARACION_V32.bat
+3. Elige Yes si Supabase pregunta por la migracion.
+4. Publica los cambios en GitHub.
+5. Luana debe cerrar sesion y volver a ingresar con Google usando:
+   luanasolis260@gmail.com

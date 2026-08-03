@@ -57,13 +57,17 @@ export default function Auth() {
   }
 
   async function redirectUser(userId) {
-    const { data: creatorBusinessId } = await supabase.rpc(
+    const { data: creatorBusinessId, error: creatorAccessError } = await supabase.rpc(
       "provision_content_creator_access",
     );
 
     if (creatorBusinessId) {
       navigate("/dashboard");
       return;
+    }
+
+    if (creatorAccessError) {
+      console.warn("Acceso especial:", creatorAccessError.message);
     }
 
     const { data } = await supabase
