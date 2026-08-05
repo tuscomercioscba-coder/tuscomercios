@@ -581,8 +581,8 @@ export default function MentorPage() {
               />
             </div>
 
-            <section className="order-1 flex h-[72dvh] min-h-[540px] max-h-[780px] min-w-0 max-w-full flex-col overflow-hidden rounded-[1.5rem] border border-white bg-white/90 shadow-xl backdrop-blur sm:h-[76dvh] sm:min-h-[620px] sm:rounded-[2rem] xl:order-2 xl:h-[760px] xl:min-h-0">
-              <div className="border-b border-slate-200 bg-white p-4 sm:p-5">
+            <section className="order-1 flex h-[88dvh] min-h-[660px] max-h-[900px] min-w-0 max-w-full flex-col overflow-hidden rounded-[1.5rem] border border-white bg-white/90 shadow-xl backdrop-blur sm:h-[82dvh] sm:min-h-[680px] sm:rounded-[2rem] xl:order-2 xl:h-[760px] xl:min-h-0">
+              <div className="shrink-0 border-b border-slate-200 bg-white p-3 sm:p-5">
                 <MentorQuickActions
                   disabled={
                     blocked ||
@@ -596,7 +596,7 @@ export default function MentorPage() {
 
               <div
                 ref={chatScrollRef}
-                className="relative min-h-0 min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] p-3 sm:p-6"
+                className="relative min-h-[320px] min-w-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] p-3 pb-6 sm:min-h-0 sm:p-6"
               >
                 <div className="mx-auto w-full max-w-4xl space-y-5">
                   {messages.map(

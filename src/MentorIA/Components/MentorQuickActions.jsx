@@ -31,20 +31,20 @@ export default function MentorQuickActions({
 }) {
   return (
     <div className="min-w-0 max-w-full overflow-hidden">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">
             Empezá rápido
           </p>
 
-          <p className="mt-1 text-sm font-semibold text-slate-500">
+          <p className="mt-1 hidden text-sm font-semibold text-slate-500 sm:block">
             Elegí una consulta o escribí la tuya.
           </p>
         </div>
 
       </div>
 
-      <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
         {ACTIONS.map(
           (action) => (
             <button
@@ -56,13 +56,13 @@ export default function MentorQuickActions({
                   action.prompt
                 )
               }
-              className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md disabled:opacity-40"
+              className="flex min-h-12 w-[155px] shrink-0 items-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md disabled:opacity-40 sm:block sm:min-h-0 sm:w-auto sm:shrink sm:rounded-2xl sm:p-3"
             >
-              <span className="text-xl">
+              <span className="shrink-0 text-lg sm:text-xl">
                 {action.icon}
               </span>
 
-              <span className="mt-2 block break-words text-xs font-black text-slate-700">
+              <span className="block break-words text-xs font-black leading-tight text-slate-700 sm:mt-2">
                 {action.label}
               </span>
             </button>
